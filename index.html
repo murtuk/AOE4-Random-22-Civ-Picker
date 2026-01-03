@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
+  <meta name="referrer" content="no-referrer">
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>AoE4 Visual Random Civ Picker</title>
   <style>
@@ -501,6 +502,7 @@
       pickedEmblemEl.innerHTML = "";
       if (url){
         const img = new Image();
+	img.referrerPolicy = "no-referrer";
         img.alt = civName;
         img.src = url;
         pickedEmblemEl.appendChild(img);
@@ -549,6 +551,7 @@
 
         if (loadImagesEl.checked && cached){
           const img = new Image();
+          img.referrerPolicy = "no-referrer";
           img.alt = civ;
           img.src = cached;
           thumb.appendChild(img);
