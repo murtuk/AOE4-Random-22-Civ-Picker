@@ -30,7 +30,33 @@
       margin-bottom: 14px;
     }
     h1{ margin:0; font-size: 22px; letter-spacing:.3px; }
-    .sub{ margin:6px 0 0; color: var(--muted); font-size: 13px; }
+    .sub{
+      display:flex;
+      flex-wrap:wrap;
+      align-items:center;
+      gap:7px;
+      margin:8px 0 0;
+      color:var(--muted);
+      font-size:14px;
+      line-height:1.5;
+    }
+    .spaceCallout{ color:#e3ebff; font-weight:750; }
+    .sub kbd{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      min-width:58px;
+      margin:0 3px;
+      padding:4px 10px;
+      border:1px solid #ffe28a;
+      border-bottom-width:3px;
+      border-radius:8px;
+      background:linear-gradient(180deg,#fff2aa,#dcae35);
+      color:#261a04;
+      box-shadow:0 4px 12px rgba(224,174,49,.25);
+      font:900 13px/1 system-ui, sans-serif;
+      letter-spacing:.35px;
+    }
     .pillbar{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
     .pill{
       padding: 8px 10px; border-radius: 999px; border: 1px solid var(--stroke);
@@ -63,6 +89,158 @@
         radial-gradient(800px 260px at 20% 0%, rgba(255,255,255,.08), transparent 60%),
         linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
       border-bottom: 1px solid var(--stroke);
+    }
+    .wheelStage{
+      display:grid;
+      place-items:center;
+      padding: 2px 0 18px;
+    }
+    body.wheel-open{ overflow:hidden; }
+    .wheelFocus{
+      position:fixed;
+      inset:0;
+      z-index:90;
+      display:grid;
+      grid-template-rows:auto auto auto;
+      align-content:center;
+      justify-items:center;
+      gap:18px;
+      padding:24px;
+      box-sizing:border-box;
+      background:rgba(4,7,13,.84);
+      backdrop-filter:blur(12px);
+      opacity:0;
+      visibility:hidden;
+      pointer-events:none;
+      transition:opacity .25s ease, visibility .25s ease;
+    }
+    .wheelFocus.show{
+      opacity:1;
+      visibility:visible;
+      pointer-events:auto;
+    }
+    .wheelFocus .wheelShell{ width:min(650px, 88vw, 76vh); }
+    .wheelFocusStatus{
+      margin:0;
+      color:#fff1a8;
+      font-size:clamp(14px, 2vw, 18px);
+      font-weight:900;
+      letter-spacing:.35px;
+      text-align:center;
+      text-shadow:0 2px 12px #000;
+    }
+    .wheelFocusTicker{
+      display:flex;
+      align-items:center;
+      gap:12px;
+      min-width:min(320px, 82vw);
+      padding:10px 14px;
+      box-sizing:border-box;
+      border:1px solid rgba(255,255,255,.18);
+      border-radius:16px;
+      background:rgba(10,16,30,.88);
+      box-shadow:0 12px 30px rgba(0,0,0,.4);
+    }
+    .focusCivIcon{
+      width:58px; height:40px;
+      flex:0 0 auto;
+      display:grid; place-items:center;
+      overflow:hidden;
+      border:2px solid rgba(255,241,168,.8);
+      border-radius:8px;
+      background:#222a38;
+      color:#fff1a8;
+      font-weight:1000;
+    }
+    .focusCivIcon img,
+    .focusCivIcon .ph{ width:100%; height:100%; object-fit:cover; }
+    .focusCivIcon .ph{ display:grid; place-items:center; }
+    .wheelFocusTicker span{
+      display:block;
+      margin-bottom:2px;
+      color:var(--muted);
+      font-size:10px;
+      font-weight:800;
+      letter-spacing:.5px;
+      text-transform:uppercase;
+    }
+    .wheelFocusTicker strong{ font-size:16px; }
+    .wheelShell{
+      position:relative;
+      width:min(330px, 82vw);
+      aspect-ratio:1;
+      filter: drop-shadow(0 18px 28px rgba(0,0,0,.42));
+    }
+    #wheelCanvas{
+      width:100%; height:100%;
+      display:block;
+      border-radius:50%;
+      will-change:transform;
+    }
+    .wheelRim{
+      position:absolute; inset:-5px;
+      border:5px solid #d7a93c;
+      border-radius:50%;
+      box-shadow:
+        inset 0 0 0 2px rgba(255,255,255,.35),
+        0 0 0 2px #725016,
+        0 0 24px rgba(238,182,58,.22);
+      pointer-events:none;
+    }
+    .wheelHub{
+      position:absolute; left:50%; top:50%;
+      width:clamp(68px, 20%, 92px); height:clamp(68px, 20%, 92px);
+      transform:translate(-50%,-50%);
+      display:grid; place-items:center;
+      border-radius:50%;
+      border:3px solid #f7d878;
+      background:radial-gradient(circle at 35% 30%, #fff2b2, #c58b1d 58%, #70470b);
+      color:#291b05;
+      box-shadow:0 5px 18px rgba(0,0,0,.55), inset 0 1px 2px rgba(255,255,255,.65);
+      font-weight:1000;
+      letter-spacing:.4px;
+      line-height:.9;
+      text-align:center;
+      pointer-events:none;
+    }
+    .wheelHub span{ display:block; font-size:11px; }
+    .wheelHub b{ display:block; font-size:22px; }
+    .wheelPointer{
+      position:absolute;
+      left:50%; top:-10px;
+      width:0; height:0;
+      transform:translateX(-50%);
+      border-left:15px solid transparent;
+      border-right:15px solid transparent;
+      border-top:31px solid #fff1a8;
+      filter:drop-shadow(0 4px 2px rgba(0,0,0,.55));
+      transform-origin:50% 0;
+      z-index:3;
+    }
+    .wheelPointer.tick{ animation:pointerTick .15s cubic-bezier(.2,.8,.3,1); }
+    .wheelShell.mixing{ animation:wheelMix 1s cubic-bezier(.36,.07,.19,.97); }
+    @keyframes pointerTick{
+      0%{ transform:translateX(-50%) rotate(0); }
+      42%{ transform:translateX(-50%) rotate(-12deg); }
+      72%{ transform:translateX(-50%) rotate(5deg); }
+      100%{ transform:translateX(-50%) rotate(0); }
+    }
+    @keyframes wheelMix{
+      0%,100%{ transform:translateX(0) rotate(0) scale(1); }
+      14%{ transform:translateX(-7px) rotate(-2deg) scale(.98); }
+      29%{ transform:translateX(7px) rotate(2deg) scale(1.015); }
+      46%{ transform:translateX(-5px) rotate(-1.4deg) scale(.985); }
+      63%{ transform:translateX(5px) rotate(1.4deg) scale(1.01); }
+      80%{ transform:translateX(-2px) rotate(-.7deg) scale(.995); }
+    }
+    .wheelStatus{
+      min-height:18px;
+      margin:12px 0 0;
+      color:var(--muted);
+      font-size:12px;
+      font-weight:800;
+      letter-spacing:.25px;
+      text-align:center;
     }
     .resultRow{ display:flex; gap: 14px; align-items:center; }
     .emblem{
@@ -100,6 +278,12 @@
     }
     button:hover{ background: rgba(255,255,255,.12); }
     button:disabled{ opacity:.5; cursor:not-allowed; }
+    #mixBtn{
+      border-color:rgba(255,218,125,.42);
+      background:rgba(255,218,125,.11);
+      color:#fff0b6;
+    }
+    #mixBtn:hover{ background:rgba(255,218,125,.18); }
 
     .opts{
       display:grid; gap:10px;
@@ -111,6 +295,37 @@
       user-select:none;
     }
     .opt input{ transform: scale(1.1); }
+    .turnControl{
+      padding:11px 12px 9px;
+      border:1px solid var(--stroke);
+      border-radius:14px;
+      background:rgba(0,0,0,.16);
+    }
+    .turnHeader,
+    .turnLabels{
+      display:flex;
+      justify-content:space-between;
+      gap:10px;
+    }
+    .turnHeader{
+      align-items:center;
+      margin-bottom:8px;
+      font-size:13px;
+      color:var(--muted);
+    }
+    .turnHeader strong{ color:#fff1a8; font-size:12px; }
+    .turnControl input[type="range"]{
+      width:100%;
+      margin:0;
+      accent-color:#e4b43f;
+      cursor:pointer;
+    }
+    .turnLabels{
+      margin-top:3px;
+      color:rgba(255,255,255,.58);
+      font-size:10px;
+      font-weight:800;
+    }
 
     .note{
       margin-top: 10px;
@@ -174,17 +389,32 @@
       overflow:hidden;
       cursor:pointer;
       position:relative;
-      transition: transform 120ms ease, filter 120ms ease, opacity 120ms ease;
+      transition: transform 120ms ease, border-color 120ms ease, box-shadow 120ms ease, background 120ms ease;
       user-select:none;
     }
     .civCard:hover{ transform: translateY(-2px); }
-    .civCard.disabled{ opacity: .38; filter: grayscale(1); }
+    .civCard:not(.disabled){
+      border-color:rgba(125,255,178,.34);
+      box-shadow:inset 0 0 0 1px rgba(125,255,178,.05);
+    }
+    .civCard.disabled{
+      opacity:1;
+      border:1px solid var(--stroke);
+      background:rgba(255,255,255,.025);
+      box-shadow:none;
+    }
     .civCard.picked{
       outline: 2px solid rgba(125,255,178,.9);
       box-shadow: 0 0 0 6px rgba(125,255,178,.10), var(--shadow);
       transform: translateY(-2px);
     }
+    .civCard.passing{
+      outline:2px solid rgba(255,218,125,.95);
+      box-shadow:0 0 0 6px rgba(255,218,125,.12), var(--shadow);
+      transform:translateY(-2px);
+    }
     .thumb{
+      position:relative;
       height: 92px;
       background:
         radial-gradient(80px 80px at 30% 30%, rgba(255,255,255,.10), transparent 55%),
@@ -193,6 +423,24 @@
       overflow:hidden;
     }
     .thumb img{ width:100%; height:100%; object-fit: cover; }
+    .civCard.disabled .thumb img{
+      filter:grayscale(1) brightness(.42) contrast(.85);
+      opacity:.58;
+    }
+    .civCard.disabled .thumb::after{
+      content:"EXCLUDED";
+      position:absolute;
+      left:8px;
+      bottom:7px;
+      padding:4px 6px;
+      border:1px solid rgba(255,180,180,.7);
+      border-radius:6px;
+      background:rgba(109,20,30,.92);
+      color:#ffe1e1;
+      font-size:9px;
+      font-weight:1000;
+      letter-spacing:.55px;
+    }
     .thumb .skeleton{
       width: 46px; height: 46px; border-radius: 14px;
       border: 1px solid rgba(255,255,255,.18);
@@ -211,6 +459,7 @@
       min-height: 38px;
       display:flex; align-items:center;
     }
+    .civCard.disabled .civName{ color:#ffc7c7; }
     .tag{
       position:absolute; top:8px; right:8px;
       font-size: 10px;
@@ -220,6 +469,18 @@
       background: rgba(0,0,0,.28);
       color: rgba(255,255,255,.75);
       backdrop-filter: blur(6px);
+    }
+    .civCard:not(.disabled) .tag{
+      border-color:rgba(125,255,178,.62);
+      background:rgba(17,92,54,.9);
+      color:#dcffea;
+      font-weight:1000;
+    }
+    .civCard.disabled .tag{
+      border-color:rgba(255,180,180,.76);
+      background:rgba(123,25,36,.94);
+      color:#fff;
+      font-weight:1000;
     }
 
     /* HISTORY */
@@ -247,18 +508,34 @@
       position: fixed; inset:0;
       pointer-events:none;
       display:none;
+      z-index:999;
     }
     canvas.confetti.show{ display:block; }
+
+    @media (prefers-reduced-motion: reduce){
+      .wheelPointer.tick{ animation:none; }
+      #wheelCanvas{ transition-duration:.01ms !important; }
+    }
   </style>
 </head>
 <body>
   <canvas id="confetti" class="confetti"></canvas>
+  <div class="wheelFocus" id="wheelFocus" aria-hidden="true">
+    <p class="wheelFocusStatus" id="wheelFocusStatus">Spinning the civilization wheel…</p>
+    <div class="wheelFocusTicker">
+      <div class="focusCivIcon" id="focusCivIcon"><div class="ph">?</div></div>
+      <div><span>Under the pointer</span><strong id="focusCivName">—</strong></div>
+    </div>
+  </div>
 
   <div class="wrap">
     <header>
       <div>
         <h1>AoE4 Visual Random Civ Picker</h1>
-        <p class="sub">Click civ cards to enable/disable. Press <b>Space</b> to pick.</p>
+        <p class="sub">
+          <span>Click civ cards to include or exclude them.</span>
+          <span class="spaceCallout">Press <kbd>Space</kbd> to spin.</span>
+        </p>
       </div>
       <div class="pillbar">
         <div class="pill">Enabled: <b id="enabledCount">0</b></div>
@@ -270,6 +547,16 @@
       <!-- Left: picker -->
       <section class="card">
         <div class="hero">
+          <div class="wheelStage" id="wheelStage">
+            <div class="wheelShell" id="wheelShell">
+              <canvas id="wheelCanvas" width="720" height="720" aria-label="Enabled civilizations wheel"></canvas>
+              <div class="wheelRim" aria-hidden="true"></div>
+              <div class="wheelHub" aria-hidden="true"><div><span>AGE OF</span><b>IV</b></div></div>
+              <div class="wheelPointer" aria-hidden="true"></div>
+            </div>
+            <p class="wheelStatus" id="wheelStatus" aria-live="polite">Wheel ready</p>
+          </div>
+
           <div class="resultRow">
             <div class="emblem" id="pickedEmblem">
               <div class="ph" id="pickedPh">?</div>
@@ -282,15 +569,24 @@
 
           <div class="btnRow">
             <button id="pickBtn">Pick random civ</button>
+            <button id="mixBtn" title="Shuffle the civilization order on the wheel">Mix wheel</button>
             <button id="copyBtn" disabled>Copy</button>
             <button id="resetBtn" title="Resets no-repeat bag, clears history, removes highlights">Reset</button>
           </div>
 
           <div class="opts">
             <label class="opt"><input type="checkbox" id="noRepeat"> No repeats until all enabled civs are used</label>
-            <label class="opt"><input type="checkbox" id="animate" checked> Shuffle animation</label>
+            <div class="turnControl">
+              <div class="turnHeader">
+                <label for="spinSpeed">Pick animation</label>
+                <strong id="spinModeLabel">Slow turn</strong>
+              </div>
+              <input id="spinSpeed" type="range" min="0" max="2" step="1" value="1" aria-describedby="spinSpeedLabels">
+              <div class="turnLabels" id="spinSpeedLabels" aria-hidden="true">
+                <span>Fast pick</span><span>Slow turn</span><span>Wheel off</span>
+              </div>
+            </div>
             <label class="opt"><input type="checkbox" id="confettiToggle" checked> Confetti on pick</label>
-            <label class="opt"><input type="checkbox" id="loadImages" checked> Load images from Fandom wiki</label>
           </div>
 
           <div class="banner" id="imgWarn">
@@ -380,6 +676,7 @@
     const KEY_HISTORY = "aoe4_visual_history_v1";
     const KEY_OPTS = "aoe4_visual_opts_v1";
     const KEY_IMG_CACHE = "aoe4_visual_imgcache_v1";
+    const KEY_WHEEL_ORDER = "aoe4_visual_wheel_order_v1";
 
     
     const civGrid = document.getElementById("civGrid");
@@ -393,14 +690,26 @@
     const pickedEmblemEl = document.getElementById("pickedEmblem");
     const pickedPhEl = document.getElementById("pickedPh");
 
+    const wheelCanvas = document.getElementById("wheelCanvas");
+    const wheelCtx = wheelCanvas.getContext("2d");
+    const wheelShell = document.getElementById("wheelShell");
+    const wheelPointerEl = document.querySelector(".wheelPointer");
+    const wheelStage = document.getElementById("wheelStage");
+    const wheelStatusEl = document.getElementById("wheelStatus");
+    const wheelFocus = document.getElementById("wheelFocus");
+    const wheelFocusStatusEl = document.getElementById("wheelFocusStatus");
+    const focusCivIconEl = document.getElementById("focusCivIcon");
+    const focusCivNameEl = document.getElementById("focusCivName");
+
     const pickBtn = document.getElementById("pickBtn");
+    const mixBtn = document.getElementById("mixBtn");
     const copyBtn = document.getElementById("copyBtn");
     const resetBtn = document.getElementById("resetBtn");
 
     const noRepeatEl = document.getElementById("noRepeat");
-    const animateEl = document.getElementById("animate");
+    const spinSpeedEl = document.getElementById("spinSpeed");
+    const spinModeLabelEl = document.getElementById("spinModeLabel");
     const confettiToggleEl = document.getElementById("confettiToggle");
-    const loadImagesEl = document.getElementById("loadImages");
 
     const enableAllBtn = document.getElementById("enableAll");
     const disableAllBtn = document.getElementById("disableAll");
@@ -427,17 +736,65 @@
     let bag = loadJSON(KEY_BAG, []);
     let history = loadJSON(KEY_HISTORY, []);
     let imgCache = loadJSON(KEY_IMG_CACHE, {}); 
+    const storedWheelOrder = loadJSON(KEY_WHEEL_ORDER, null);
+    let wheelOrder = Array.isArray(storedWheelOrder) &&
+      storedWheelOrder.length === CIVS.length &&
+      new Set(storedWheelOrder).size === CIVS.length &&
+      CIVS.every(civ => storedWheelOrder.includes(civ))
+        ? storedWheelOrder
+        : CIVS.slice();
 
-    const defaultOpts = { noRepeat:false, animate:true, confetti:true, loadImages:true };
+    const SPIN_MODES = [
+      { key:"fast", label:"Fast pick" },
+      { key:"slow", label:"Slow turn" },
+      { key:"off", label:"Wheel off" }
+    ];
+    const defaultOpts = { noRepeat:false, spinMode:"slow", confetti:true };
     const opts = { ...defaultOpts, ...loadJSON(KEY_OPTS, {}) };
+    if (!SPIN_MODES.some(mode => mode.key === opts.spinMode)) opts.spinMode = "slow";
+    delete opts.animate;
+    delete opts.loadImages;
     noRepeatEl.checked = !!opts.noRepeat;
-    animateEl.checked = !!opts.animate;
+    const initialSpinIndex = SPIN_MODES.findIndex(mode => mode.key === opts.spinMode);
+    spinSpeedEl.value = String(initialSpinIndex);
+    spinModeLabelEl.textContent = SPIN_MODES[initialSpinIndex].label;
+    spinSpeedEl.setAttribute("aria-valuetext", SPIN_MODES[initialSpinIndex].label);
     confettiToggleEl.checked = opts.confetti !== false;
-    loadImagesEl.checked = opts.loadImages !== false;
+    saveJSON(KEY_OPTS, opts);
 
     totalCountEl.textContent = String(CIVS.length);
 
     let lastPicked = null;
+    let isSpinning = false;
+    let isMixing = false;
+    let wheelRotation = 0;
+    const wheelIconCache = new Map();
+
+    const CIV_PALETTES = {
+      "Abbasid Dynasty": ["#171a18", "#2d8a53"],
+      "Ayyubids": ["#dfb83c", "#b52f35"],
+      "Byzantines": ["#68428f", "#e7e4dc"],
+      "Chinese": ["#b72d35", "#e0b33f"],
+      "Delhi Sultanate": ["#278b45", "#171a18"],
+      "French": ["#2d5fa8", "#e2c75a"],
+      "English": ["#ece8df", "#b8323b"],
+      "Golden Horde": ["#efeee8", "#b72e34"],
+      "HRE": ["#d0a72e", "#292725"],
+      "House of Lancaster": ["#315a8b", "#e9ebe8"],
+      "Japanese": ["#c9a33d", "#efeee8"],
+      "Jeanne d Arc": ["#efeee8", "#d1ad43"],
+      "Jin Dynasty": ["#a92d35", "#d6a83b"],
+      "Knights Templar": ["#191b1d", "#b52e35"],
+      "Macedonian Dynast": ["#a82f35", "#d6ae42"],
+      "Malians": ["#d3a72f", "#8e2c32"],
+      "Mongols": ["#318597", "#e3e1d8"],
+      "Order of the Dragon": ["#d4aa2f", "#202020"],
+      "Ottomans": ["#28754f", "#a92f35"],
+      "Rus": ["#aa3038", "#d2aa42"],
+      "Sengoku Daimyo": ["#9f2935", "#d1a43a"],
+      "Tughlaq Dynasty": ["#d8d8d1", "#35383a"],
+      "Zhu Xis Legacy": ["#39877f", "#ecece6"]
+    };
 
     
     function loadJSON(key, fallback){
@@ -455,14 +812,340 @@
     }
 
     function getEnabledCivs(){
-      return CIVS.filter(c => enabledMap[c] !== false);
+      return wheelOrder.filter(c => enabledMap[c] !== false);
+    }
+
+    function paletteFor(civ){
+      const [primary, accent] = CIV_PALETTES[civ] || ["#596780", "#e0bf62"];
+      return { primary, accent };
+    }
+
+    function hexToRgb(hex){
+      const value = hex.replace("#", "");
+      return {
+        r:parseInt(value.slice(0,2), 16),
+        g:parseInt(value.slice(2,4), 16),
+        b:parseInt(value.slice(4,6), 16)
+      };
+    }
+
+    function mixHex(first, second, amount){
+      const a = hexToRgb(first);
+      const b = hexToRgb(second);
+      const channel = key => Math.round(a[key] * (1 - amount) + b[key] * amount)
+        .toString(16).padStart(2, "0");
+      return `#${channel("r")}${channel("g")}${channel("b")}`;
+    }
+
+    function readableText(background){
+      const { r, g, b } = hexToRgb(background);
+      const luminance = (r * .299 + g * .587 + b * .114) / 255;
+      return luminance > .62 ? "#201a10" : "#ffffff";
+    }
+
+    function shortWheelLabel(name, count){
+      const max = count > 18 ? 13 : count > 12 ? 16 : 22;
+      return name.length > max ? `${name.slice(0, max - 1)}…` : name;
+    }
+
+    function wheelIconFor(civ){
+      const url = imgCache[titleFor(civ)]?.url;
+      if (!url) return null;
+
+      const cached = wheelIconCache.get(civ);
+      if (cached?.url === url){
+        return cached.ready ? cached.img : null;
+      }
+
+      const entry = { url, img:new Image(), ready:false };
+      wheelIconCache.set(civ, entry);
+      entry.img.referrerPolicy = "no-referrer";
+      entry.img.onload = () => {
+        entry.ready = true;
+        if (!isSpinning && !isMixing){
+          drawWheel(getEnabledCivs());
+          if (lastPicked) wheelStatusEl.textContent = `The wheel chose ${lastPicked}`;
+        }
+      };
+      entry.img.onerror = () => { entry.failed = true; };
+      entry.img.src = url;
+      return null;
+    }
+
+    function drawImageCover(context, img, x, y, width, height){
+      const sourceRatio = img.naturalWidth / img.naturalHeight;
+      const targetRatio = width / height;
+      let sx = 0, sy = 0, sw = img.naturalWidth, sh = img.naturalHeight;
+
+      if (sourceRatio > targetRatio){
+        sw = img.naturalHeight * targetRatio;
+        sx = (img.naturalWidth - sw) / 2;
+      } else {
+        sh = img.naturalWidth / targetRatio;
+        sy = (img.naturalHeight - sh) / 2;
+      }
+      context.drawImage(img, sx, sy, sw, sh, x, y, width, height);
+    }
+
+    function drawFlagBadge(civ, radius, count, palette){
+      const preferredWidth = count > 18 ? 84 : count > 12 ? 100 : 112;
+      const halfArcTangent = count > 2 ? Math.tan(Math.PI / count) : Infinity;
+      const boundarySafeWidth = count > 2
+        ? Math.floor((2 * (radius - 20) * halfArcTangent - 10) / (.62 + 2 * halfArcTangent))
+        : preferredWidth;
+      const width = Math.min(preferredWidth, boundarySafeWidth);
+      const height = Math.round(width * .62);
+      const x = radius - width - 20;
+      const y = -height / 2;
+      const icon = wheelIconFor(civ);
+
+      wheelCtx.fillStyle = mixHex(palette.primary, "#05080d", .52);
+      wheelCtx.fillRect(x - 3, y - 3, width + 6, height + 6);
+      if (icon?.naturalWidth){
+        wheelCtx.save();
+        wheelCtx.beginPath();
+        wheelCtx.rect(x, y, width, height);
+        wheelCtx.clip();
+        drawImageCover(wheelCtx, icon, x, y, width, height);
+        wheelCtx.restore();
+      } else {
+        wheelCtx.fillStyle = mixHex(palette.primary, palette.accent, .28);
+        wheelCtx.fillRect(x, y, width, height);
+        wheelCtx.fillStyle = readableText(palette.primary);
+        wheelCtx.font = `1000 ${count > 18 ? 13 : 16}px system-ui, sans-serif`;
+        wheelCtx.textAlign = "center";
+        wheelCtx.textBaseline = "middle";
+        wheelCtx.fillText(civ.split(/\s+/).map(word => word[0]).join("").slice(0,3), x + width / 2, 1);
+      }
+      wheelCtx.strokeStyle = palette.accent;
+      wheelCtx.lineWidth = 3;
+      wheelCtx.strokeRect(x - 1.5, y - 1.5, width + 3, height + 3);
+      return width;
+    }
+
+    function drawWheel(civs){
+      const size = wheelCanvas.width;
+      const cx = size / 2;
+      const cy = size / 2;
+      const radius = size / 2 - 12;
+
+      wheelCtx.clearRect(0, 0, size, size);
+
+      if (civs.length === 0){
+        wheelCtx.beginPath();
+        wheelCtx.arc(cx, cy, radius, 0, Math.PI * 2);
+        wheelCtx.fillStyle = "#252b38";
+        wheelCtx.fill();
+        wheelCtx.fillStyle = "rgba(255,255,255,.58)";
+        wheelCtx.font = "800 30px system-ui, sans-serif";
+        wheelCtx.textAlign = "center";
+        wheelCtx.textBaseline = "middle";
+        wheelCtx.fillText("Enable a civilization", cx, cy - 56);
+        wheelStatusEl.textContent = "Enable at least one civilization";
+        return;
+      }
+
+      const arc = Math.PI * 2 / civs.length;
+      const startOffset = -Math.PI / 2 - arc / 2;
+
+      civs.forEach((civ, i) => {
+        const start = startOffset + i * arc;
+        const end = start + arc;
+        const mid = start + arc / 2;
+        const palette = paletteFor(civ);
+        const outerColor = mixHex(palette.primary, "#05070b", .16);
+        const segmentFill = wheelCtx.createRadialGradient(cx, cy, radius * .12, cx, cy, radius);
+        segmentFill.addColorStop(0, palette.accent);
+        segmentFill.addColorStop(.28, palette.primary);
+        segmentFill.addColorStop(1, outerColor);
+
+        wheelCtx.beginPath();
+        wheelCtx.moveTo(cx, cy);
+        wheelCtx.arc(cx, cy, radius, start, end);
+        wheelCtx.closePath();
+        wheelCtx.fillStyle = segmentFill;
+        wheelCtx.fill();
+        wheelCtx.strokeStyle = mixHex(palette.accent, "#ffffff", .35);
+        wheelCtx.lineWidth = 3;
+        wheelCtx.stroke();
+
+        wheelCtx.save();
+        wheelCtx.translate(cx, cy);
+        wheelCtx.rotate(mid);
+        const flagWidth = drawFlagBadge(civ, radius, civs.length, palette);
+        wheelCtx.restore();
+
+        wheelCtx.save();
+        wheelCtx.translate(cx, cy);
+        wheelCtx.rotate(mid);
+        if (Math.cos(mid) < 0){
+          wheelCtx.rotate(Math.PI);
+          wheelCtx.textAlign = "left";
+        } else {
+          wheelCtx.textAlign = "right";
+        }
+        const labelColor = readableText(outerColor);
+        wheelCtx.fillStyle = labelColor;
+        wheelCtx.shadowColor = labelColor === "#ffffff" ? "rgba(0,0,0,.8)" : "rgba(255,255,255,.55)";
+        wheelCtx.shadowBlur = 5;
+        wheelCtx.font = `900 ${civs.length > 18 ? 18 : civs.length > 12 ? 21 : 25}px system-ui, sans-serif`;
+        wheelCtx.textBaseline = "middle";
+        const labelEdge = radius - flagWidth - 52;
+        wheelCtx.fillText(shortWheelLabel(civ, civs.length), Math.cos(mid) < 0 ? -labelEdge : labelEdge, 0);
+        wheelCtx.restore();
+      });
+
+      wheelCtx.beginPath();
+      wheelCtx.arc(cx, cy, radius * .18, 0, Math.PI * 2);
+      wheelCtx.fillStyle = "rgba(36,23,4,.86)";
+      wheelCtx.fill();
+      wheelStatusEl.textContent = `${civs.length} civilization${civs.length === 1 ? "" : "s"} on the wheel`;
+    }
+
+    function centerOf(rect){
+      return { x:rect.left + rect.width / 2, y:rect.top + rect.height / 2 };
+    }
+
+    function nextPaint(){
+      return new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    }
+
+    async function expandWheel(){
+      const first = wheelShell.getBoundingClientRect();
+      const placeholder = document.createElement("div");
+      placeholder.className = "wheelPlaceholder";
+      placeholder.style.width = `${first.width}px`;
+      placeholder.style.height = `${first.height}px`;
+      wheelStage.insertBefore(placeholder, wheelShell);
+
+      wheelFocus.insertBefore(wheelShell, wheelFocusStatusEl);
+      wheelFocus.classList.add("show");
+      document.body.classList.add("wheel-open");
+      await nextPaint();
+
+      const last = wheelShell.getBoundingClientRect();
+      const from = centerOf(first);
+      const to = centerOf(last);
+      if (wheelShell.animate){
+        const animation = wheelShell.animate([
+          { transform:`translate(${from.x - to.x}px, ${from.y - to.y}px) scale(${first.width / last.width})` },
+          { transform:"translate(0, 0) scale(1)" }
+        ], { duration:360, easing:"cubic-bezier(.2,.8,.2,1)" });
+        await animation.finished.catch(() => {});
+      }
+      return placeholder;
+    }
+
+    async function collapseWheel(placeholder){
+      const first = wheelShell.getBoundingClientRect();
+      const last = placeholder.getBoundingClientRect();
+      const from = centerOf(first);
+      const to = centerOf(last);
+
+      if (wheelShell.animate){
+        const animation = wheelShell.animate([
+          { transform:"translate(0, 0) scale(1)" },
+          { transform:`translate(${to.x - from.x}px, ${to.y - from.y}px) scale(${last.width / first.width})` }
+        ], { duration:300, easing:"cubic-bezier(.4,0,.2,1)", fill:"forwards" });
+        await animation.finished.catch(() => {});
+        wheelStage.insertBefore(wheelShell, placeholder);
+        placeholder.remove();
+        animation.cancel();
+      } else {
+        wheelStage.insertBefore(wheelShell, placeholder);
+        placeholder.remove();
+      }
+
+      wheelFocus.classList.remove("show");
+      document.body.classList.remove("wheel-open");
+    }
+
+    function currentWheelAngle(){
+      const transform = getComputedStyle(wheelCanvas).transform;
+      if (!transform || transform === "none") return wheelRotation;
+      if (window.DOMMatrixReadOnly){
+        const matrix = new DOMMatrixReadOnly(transform);
+        return Math.atan2(matrix.b, matrix.a) * 180 / Math.PI;
+      }
+      const values = transform.match(/matrix\(([^)]+)\)/)?.[1]?.split(",").map(Number);
+      return values ? Math.atan2(values[1], values[0]) * 180 / Math.PI : wheelRotation;
+    }
+
+    let pointerTickTimer = null;
+    function tickPointer(){
+      if (!wheelPointerEl || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+      if (pointerTickTimer) clearTimeout(pointerTickTimer);
+      wheelPointerEl.classList.remove("tick");
+      void wheelPointerEl.offsetWidth;
+      wheelPointerEl.classList.add("tick");
+      pointerTickTimer = setTimeout(() => wheelPointerEl.classList.remove("tick"), 170);
+    }
+
+    function trackPassingCivs(civs, duration){
+      const segmentDegrees = 360 / civs.length;
+      const endAt = performance.now() + duration + 40;
+      let previous = null;
+
+      return new Promise(resolve => {
+        function tick(){
+          const angle = currentWheelAngle();
+          const index = ((Math.round(-angle / segmentDegrees) % civs.length) + civs.length) % civs.length;
+          const passing = civs[index];
+          if (passing !== previous){
+            if (previous !== null) tickPointer();
+            setPassingCiv(passing);
+            previous = passing;
+          }
+          if (performance.now() < endAt){
+            requestAnimationFrame(tick);
+          } else {
+            resolve();
+          }
+        }
+        requestAnimationFrame(tick);
+      });
+    }
+
+    async function spinWheel(civs, chosen, spinMode){
+      const chosenIndex = civs.indexOf(chosen);
+      if (chosenIndex < 0) return;
+
+      drawWheel(civs);
+      wheelFocusStatusEl.textContent = spinMode === "slow" ? "Slow turn · spinning…" : "Fast pick · spinning…";
+      const placeholder = await expandWheel();
+      const segmentDegrees = 360 / civs.length;
+      const target = -chosenIndex * segmentDegrees;
+      const current = ((wheelRotation % 360) + 360) % 360;
+      const targetNormalized = ((target % 360) + 360) % 360;
+      const alignment = (targetNormalized - current + 360) % 360;
+      const turns = 5 + Math.floor(Math.random() * 3);
+      const fastDuration = 3600 + Math.floor(Math.random() * 700);
+      const duration = spinMode === "slow" ? fastDuration * 2 : fastDuration;
+
+      wheelRotation += turns * 360 + alignment;
+      wheelShell.classList.add("spinning");
+      wheelCanvas.style.transition = `transform ${duration}ms cubic-bezier(.12,.68,.14,1)`;
+      wheelCanvas.getBoundingClientRect();
+      wheelCanvas.style.transform = `rotate(${wheelRotation}deg)`;
+      wheelStatusEl.textContent = "Spinning…";
+
+      await Promise.all([sleep(duration + 80), trackPassingCivs(civs, duration)]);
+      wheelShell.classList.remove("spinning");
+      wheelStatusEl.textContent = `The wheel chose ${chosen}`;
+      wheelFocusStatusEl.textContent = `The wheel chose ${chosen}`;
+      setPassingCiv(chosen);
+      await collapseWheel(placeholder);
     }
 
     function updateEnabledCount(){
       const n = getEnabledCivs().length;
       enabledCountEl.textContent = String(n);
-      pickBtn.disabled = (n === 0);
+      pickBtn.disabled = (n === 0 || isSpinning || isMixing);
+      mixBtn.disabled = (n < 2 || isSpinning || isMixing);
+      enableAllBtn.disabled = isSpinning || isMixing;
+      disableAllBtn.disabled = isSpinning || isMixing;
       filteredCountEl.textContent = `${n} enabled • ${getFilteredCivs().length} shown`;
+      if (!isSpinning && !isMixing) drawWheel(getEnabledCivs());
     }
 
     function titleFor(civName){
@@ -472,6 +1155,15 @@
     function pickRandom(arr){
       const i = Math.floor(Math.random() * arr.length);
       return arr[i];
+    }
+
+    function shuffled(list){
+      const next = list.slice();
+      for (let i = next.length - 1; i > 0; i--){
+        const j = Math.floor(Math.random() * (i + 1));
+        [next[i], next[j]] = [next[j], next[i]];
+      }
+      return next;
     }
 
     function rebuildBag(){
@@ -491,34 +1183,50 @@
       }
     }
 
+    function renderCivImage(container, civName){
+      const t = civName ? titleFor(civName) : null;
+      const url = t && imgCache[t]?.url ? imgCache[t].url : null;
+
+      container.innerHTML = "";
+      if (url){
+        const img = new Image();
+	        img.referrerPolicy = "no-referrer";
+        img.alt = civName;
+        img.src = url;
+        container.appendChild(img);
+      } else {
+        const ph = document.createElement("div");
+        ph.className = "ph";
+        ph.textContent = civName ? civName.trim()[0].toUpperCase() : "?";
+        container.appendChild(ph);
+      }
+    }
+
+    function setPassingCiv(civName){
+      pickedNameEl.textContent = civName;
+      pickedMetaEl.textContent = "Passing the pointer…";
+      copyBtn.disabled = true;
+      renderCivImage(pickedEmblemEl, civName);
+      renderCivImage(focusCivIconEl, civName);
+      focusCivNameEl.textContent = civName;
+
+      document.querySelectorAll(".civCard.passing").forEach(el => el.classList.remove("passing"));
+      const card = document.querySelector(`.civCard[data-name="${cssEscape(civName)}"]`);
+      if (card) card.classList.add("passing");
+    }
+
     function setPicked(civName){
       lastPicked = civName;
       pickedNameEl.textContent = civName || "—";
       pickedMetaEl.textContent = civName ? "Selected" : "Pick a civilization to start";
       copyBtn.disabled = !civName;
+      renderCivImage(pickedEmblemEl, civName);
+      renderCivImage(focusCivIconEl, civName);
+      focusCivNameEl.textContent = civName || "—";
 
-      
-      const t = civName ? titleFor(civName) : null;
-      const url = t && imgCache[t]?.url ? imgCache[t].url : null;
-
-      pickedEmblemEl.innerHTML = "";
-      if (url){
-        const img = new Image();
-	img.referrerPolicy = "no-referrer";
-        img.alt = civName;
-        img.src = url;
-        pickedEmblemEl.appendChild(img);
-      } else {
-        const ph = document.createElement("div");
-        ph.className = "ph";
-        ph.textContent = civName ? civName.trim()[0].toUpperCase() : "?";
-        pickedEmblemEl.appendChild(ph);
-      }
-
-      
-      document.querySelectorAll(".civCard").forEach(el => el.classList.remove("picked"));
+      document.querySelectorAll(".civCard").forEach(el => el.classList.remove("picked", "passing"));
       const card = document.querySelector(`.civCard[data-name="${cssEscape(civName)}"]`);
-      if (card) card.classList.add("picked");
+      if (card && enabledMap[civName] !== false) card.classList.add("picked");
     }
 
     
@@ -551,7 +1259,7 @@
         const wikiTitle = titleFor(civ);
         const cached = imgCache[wikiTitle]?.url;
 
-        if (loadImagesEl.checked && cached){
+        if (cached){
           const img = new Image();
           img.referrerPolicy = "no-referrer";
           img.alt = civ;
@@ -576,6 +1284,7 @@
         card.appendChild(name);
 
         card.addEventListener("click", () => {
+          if (isSpinning || isMixing) return;
           enabledMap[civ] = !(enabledMap[civ] === true);
           saveJSON(KEY_ENABLED, enabledMap);
           rebuildBag();
@@ -659,8 +1368,6 @@
     }
 
     async function loadImages(){
-      if (!loadImagesEl.checked) return;
-
       imgWarnEl.classList.remove("show");
 
       
@@ -714,22 +1421,46 @@
       }
     }
 
+    async function mixWheel(){
+      if (isSpinning || isMixing || getEnabledCivs().length < 2) return;
+
+      const originalOrder = wheelOrder.join("|");
+      const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      isMixing = true;
+      updateEnabledCount();
+      wheelStatusEl.textContent = "Mixing the wheel order…";
+
+      if (reducedMotion){
+        wheelOrder = shuffled(wheelOrder);
+      } else {
+        const started = performance.now();
+        wheelShell.classList.add("mixing");
+        for (let step = 0; step < 9; step++){
+          await sleep(100);
+          wheelOrder = shuffled(wheelOrder);
+          drawWheel(getEnabledCivs());
+          wheelStatusEl.textContent = "Mixing the wheel order…";
+        }
+        const remaining = 1000 - (performance.now() - started);
+        if (remaining > 0) await sleep(remaining);
+        wheelShell.classList.remove("mixing");
+      }
+
+      if (wheelOrder.join("|") === originalOrder){
+        wheelOrder = [...wheelOrder.slice(1), wheelOrder[0]];
+      }
+      saveJSON(KEY_WHEEL_ORDER, wheelOrder);
+      isMixing = false;
+      updateEnabledCount();
+      wheelStatusEl.textContent = "Wheel order mixed";
+      showToast("Wheel mixed!");
+    }
+
    
     async function doPick(){
+      if (isSpinning || isMixing) return;
       const enabled = getEnabledCivs();
       if (enabled.length === 0) return;
-
-      const visibleCards = [...document.querySelectorAll(".civCard")];
-
-      
-      if (animateEl.checked){
-        const start = performance.now();
-        while (performance.now() - start < 900){
-          const r = pickRandom(enabled);
-          setPicked(r);
-          await sleep(60);
-        }
-      }
 
       let chosen = null;
       if (noRepeatEl.checked){
@@ -741,6 +1472,25 @@
         chosen = pickRandom(enabled);
       }
 
+      isSpinning = true;
+      pickBtn.disabled = true;
+      document.querySelectorAll(".civCard").forEach(el => el.classList.remove("picked", "passing"));
+      const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const activeSpinMode = reducedMotion ? "off" : opts.spinMode;
+      if (activeSpinMode !== "off"){
+        await spinWheel(enabled, chosen, activeSpinMode);
+      } else {
+        drawWheel(enabled);
+        const chosenIndex = enabled.indexOf(chosen);
+        const segmentDegrees = 360 / enabled.length;
+        const target = -chosenIndex * segmentDegrees;
+        const current = ((wheelRotation % 360) + 360) % 360;
+        wheelRotation += (target - current + 360) % 360;
+        wheelCanvas.style.transition = "none";
+        wheelCanvas.style.transform = `rotate(${wheelRotation}deg)`;
+        wheelStatusEl.textContent = `The wheel chose ${chosen}`;
+      }
+
       setPicked(chosen);
 
       history.unshift(chosen);
@@ -749,6 +1499,9 @@
       renderHistory();
 
       if (confettiToggleEl.checked) fireConfetti();
+      isSpinning = false;
+      updateEnabledCount();
+      wheelStatusEl.textContent = `The wheel chose ${chosen}`;
     }
 
     function sleep(ms){ return new Promise(r => setTimeout(r, ms)); }
@@ -775,6 +1528,7 @@
       document.querySelectorAll(".civCard").forEach(el => el.classList.remove("picked"));
       setPicked(null);
       rebuildBag();
+      wheelStatusEl.textContent = `${getEnabledCivs().length} civilizations on the wheel`;
       showToast("Reset done");
     }
 
@@ -795,7 +1549,8 @@
       const pieces = [];
       const W = window.innerWidth, H = window.innerHeight;
 
-      for (let i=0;i<120;i++){
+      const colors = ["#ff4d6d", "#ffb703", "#ffe66d", "#38d996", "#22c7f2", "#5b8cff", "#9b5de5", "#f15bb5"];
+      for (let i=0;i<150;i++){
         pieces.push({
           x: Math.random()*W,
           y: -20 - Math.random()*200,
@@ -804,7 +1559,9 @@
           r: 2 + Math.random()*5,
           a: Math.random()*Math.PI*2,
           va: (Math.random()-.5)*0.25,
-          life: 80 + Math.random()*60
+          life: 80 + Math.random()*60,
+          color: colors[Math.floor(Math.random()*colors.length)],
+          shape: Math.random() > .72 ? "circle" : "rect"
         });
       }
 
@@ -823,9 +1580,14 @@
           ctx.translate(p.x, p.y);
           ctx.rotate(p.a);
           ctx.globalAlpha = Math.max(0, Math.min(1, p.life/140));
-          ctx.fillRect(-p.r, -p.r/2, p.r*2, p.r);
-          ctx.globalAlpha *= 0.35;
-          ctx.fillRect(-p.r, -p.r/2, p.r*2, p.r/3);
+          ctx.fillStyle = p.color;
+          if (p.shape === "circle"){
+            ctx.beginPath();
+            ctx.arc(0, 0, p.r, 0, Math.PI * 2);
+            ctx.fill();
+          } else {
+            ctx.fillRect(-p.r, -p.r/2, p.r*2.4, p.r);
+          }
           ctx.restore();
         }
 
@@ -847,6 +1609,7 @@
 
     
     pickBtn.addEventListener("click", doPick);
+    mixBtn.addEventListener("click", mixWheel);
     copyBtn.addEventListener("click", copyPicked);
     resetBtn.addEventListener("click", resetAll);
 
@@ -870,23 +1633,22 @@
       saveJSON(KEY_OPTS, opts);
       rebuildBag();
     });
-    animateEl.addEventListener("change", () => {
-      opts.animate = animateEl.checked;
+    spinSpeedEl.addEventListener("input", () => {
+      const selected = SPIN_MODES[Number(spinSpeedEl.value)] || SPIN_MODES[1];
+      opts.spinMode = selected.key;
+      spinModeLabelEl.textContent = selected.label;
+      spinSpeedEl.setAttribute("aria-valuetext", selected.label);
       saveJSON(KEY_OPTS, opts);
     });
     confettiToggleEl.addEventListener("change", () => {
       opts.confetti = confettiToggleEl.checked;
       saveJSON(KEY_OPTS, opts);
     });
-    loadImagesEl.addEventListener("change", async () => {
-      opts.loadImages = loadImagesEl.checked;
-      saveJSON(KEY_OPTS, opts);
-      renderGrid();
-      if (loadImagesEl.checked) await loadImages();
-    });
 
     document.addEventListener("keydown", (e) => {
-      if (e.code === "Space"){
+      const typingOrAdjusting = e.target instanceof HTMLElement &&
+        ["INPUT", "BUTTON", "TEXTAREA", "SELECT"].includes(e.target.tagName);
+      if (e.code === "Space" && !typingOrAdjusting){
         e.preventDefault();
         if (!pickBtn.disabled) doPick();
       }
