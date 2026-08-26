@@ -532,7 +532,6 @@
 
     @media (prefers-reduced-motion: reduce){
       .wheelPointer.tick{ animation:none; }
-      #wheelCanvas{ transition-duration:.01ms !important; }
     }
   </style>
 </head>
@@ -902,11 +901,12 @@
     }
 
     function wheelIconFor(civ){
-      const url = imgCache[titleFor(civ)]?.url;
+      const cachedImage = imgCache[titleFor(civ)];
+      const url = cachedImage && cachedImage.url;
       if (!url) return null;
 
       const cached = wheelIconCache.get(civ);
-      if (cached?.url === url){
+      if (cached && cached.url === url){
         return cached.ready ? cached.img : null;
       }
 
@@ -954,7 +954,7 @@
 
       wheelCtx.fillStyle = mixHex(palette.primary, "#05080d", .52);
       wheelCtx.fillRect(x - 3, y - 3, width + 6, height + 6);
-      if (icon?.naturalWidth){
+      if (icon && icon.naturalWidth){
         wheelCtx.save();
         wheelCtx.beginPath();
         wheelCtx.rect(x, y, width, height);
@@ -1058,6 +1058,21 @@
       return new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
     }
 
+    async function playElementAnimation(element, keyframes, options){
+      if (!element || typeof element.animate !== "function") return null;
+      try{
+        const animation = element.animate(keyframes, options);
+        if (animation.finished && typeof animation.finished.then === "function"){
+          await animation.finished.catch(() => {});
+        } else {
+          await sleep(Number(options.duration) || 0);
+        }
+        return animation;
+      } catch {
+        return null;
+      }
+    }
+
     async function expandWheel(){
       const first = wheelShell.getBoundingClientRect();
       const placeholder = document.createElement("div");
@@ -1074,12 +1089,11 @@
       const last = wheelShell.getBoundingClientRect();
       const from = centerOf(first);
       const to = centerOf(last);
-      if (wheelShell.animate){
-        const animation = wheelShell.animate([
+      if (typeof wheelShell.animate === "function"){
+        await playElementAnimation(wheelShell, [
           { transform:`translate(${from.x - to.x}px, ${from.y - to.y}px) scale(${first.width / last.width})` },
           { transform:"translate(0, 0) scale(1)" }
         ], { duration:360, easing:"cubic-bezier(.2,.8,.2,1)" });
-        await animation.finished.catch(() => {});
       }
       return placeholder;
     }
@@ -1090,15 +1104,14 @@
       const from = centerOf(first);
       const to = centerOf(last);
 
-      if (wheelShell.animate){
-        const animation = wheelShell.animate([
+      if (typeof wheelShell.animate === "function"){
+        const animation = await playElementAnimation(wheelShell, [
           { transform:"translate(0, 0) scale(1)" },
           { transform:`translate(${to.x - from.x}px, ${to.y - from.y}px) scale(${last.width / first.width})` }
         ], { duration:300, easing:"cubic-bezier(.4,0,.2,1)", fill:"forwards" });
-        await animation.finished.catch(() => {});
         wheelStage.insertBefore(wheelShell, placeholder);
         placeholder.remove();
-        animation.cancel();
+        if (animation && typeof animation.cancel === "function") animation.cancel();
       } else {
         wheelStage.insertBefore(wheelShell, placeholder);
         placeholder.remove();
@@ -1112,16 +1125,24 @@
       const transform = getComputedStyle(wheelCanvas).transform;
       if (!transform || transform === "none") return wheelRotation;
       if (window.DOMMatrixReadOnly){
-        const matrix = new DOMMatrixReadOnly(transform);
-        return Math.atan2(matrix.b, matrix.a) * 180 / Math.PI;
+        try{
+          const matrix = new DOMMatrixReadOnly(transform);
+          return Math.atan2(matrix.b, matrix.a) * 180 / Math.PI;
+        } catch {}
       }
-      const values = transform.match(/matrix\(([^)]+)\)/)?.[1]?.split(",").map(Number);
+      const match = transform.match(/matrix\(([^)]+)\)/);
+      const values = match && match[1] ? match[1].split(",").map(Number) : null;
       return values ? Math.atan2(values[1], values[0]) * 180 / Math.PI : wheelRotation;
+    }
+
+    function prefersReducedMotion(){
+      return typeof window.matchMedia === "function" &&
+        window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     }
 
     let pointerTickTimer = null;
     function tickPointer(){
-      if (!wheelPointerEl || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+      if (!wheelPointerEl || prefersReducedMotion()) return;
       if (pointerTickTimer) clearTimeout(pointerTickTimer);
       wheelPointerEl.classList.remove("tick");
       void wheelPointerEl.offsetWidth;
@@ -1197,7 +1218,7 @@
     }
 
     function titleFor(civName){
-      return WIKI_TITLE_OVERRIDES[civName] || civName.replaceAll(" ", "_");
+      return WIKI_TITLE_OVERRIDES[civName] || civName.replace(/ /g, "_");
     }
 
     function pickRandom(arr){
@@ -1245,7 +1266,7 @@
 
     function renderCivImage(container, civName){
       const t = civName ? titleFor(civName) : null;
-      const url = t && imgCache[t]?.url ? imgCache[t].url : null;
+      const url = t && imgCache[t] && imgCache[t].url ? imgCache[t].url : null;
 
       container.innerHTML = "";
       if (url){
@@ -1315,7 +1336,8 @@
         thumb.className = "thumb";
 
         const wikiTitle = titleFor(civ);
-        const cached = imgCache[wikiTitle]?.url;
+        const cachedEntry = imgCache[wikiTitle];
+        const cached = cachedEntry && cachedEntry.url;
 
         if (cached){
           const img = new Image();
@@ -1363,7 +1385,7 @@
       let loaded = 0;
       for (const civ of CIVS){
         const t = titleFor(civ);
-        if (imgCache[t]?.url) loaded++;
+        if (imgCache[t] && imgCache[t].url) loaded++;
       }
       imgCountEl.textContent = String(loaded);
     }
@@ -1386,14 +1408,15 @@
   if (!res.ok) throw new Error("pageimages request failed");
 
   const json = await res.json();
-  const pages = json?.query?.pages;
+  const pages = json && json.query && json.query.pages;
   if (!pages) return null;
 
   const firstKey = Object.keys(pages)[0];
   const page = pages[firstKey];
 
   
-  return page?.thumbnail?.source || page?.original?.source || null;
+  return (page && page.thumbnail && page.thumbnail.source) ||
+    (page && page.original && page.original.source) || null;
 }
 
 
@@ -1409,8 +1432,9 @@
       const res = await fetch(`${API}?${params.toString()}`);
       if (!res.ok) return null;
       const json = await res.json();
-      const hit = json?.query?.search?.[0];
-      return hit?.title || null;
+      const hits = json && json.query && json.query.search;
+      const hit = hits && hits[0];
+      return hit && hit.title ? hit.title : null;
     }
 
     function cacheSet(title, url){
@@ -1420,7 +1444,7 @@
 
     function cacheFresh(title){
       const e = imgCache[title];
-      if (!e?.url) return false;
+      if (!e || !e.url) return false;
       if (!e.t) return true;
       return (Date.now() - e.t) < CACHE_TTL_MS;
     }
@@ -1483,7 +1507,7 @@
       if (isSpinning || isMixing || getEnabledCivs().length < 2) return;
 
       const originalOrder = wheelOrder.join("|");
-      const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const reducedMotion = prefersReducedMotion();
       isMixing = true;
       updateEnabledCount();
       wheelStatusEl.textContent = "Mixing the wheel order…";
@@ -1533,20 +1557,18 @@
       isSpinning = true;
       pickBtn.disabled = true;
       document.querySelectorAll(".civCard").forEach(el => el.classList.remove("picked", "passing"));
-      const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-      const activeSpinMode = reducedMotion ? "off" : opts.spinMode;
-      if (activeSpinMode !== "off"){
-        await spinWheel(enabled, chosen, activeSpinMode);
-      } else {
-        drawWheel(enabled);
-        const chosenIndex = enabled.indexOf(chosen);
-        const segmentDegrees = 360 / enabled.length;
-        const target = -chosenIndex * segmentDegrees;
-        const current = ((wheelRotation % 360) + 360) % 360;
-        wheelRotation += (target - current + 360) % 360;
-        wheelCanvas.style.transition = "none";
-        wheelCanvas.style.transform = `rotate(${wheelRotation}deg)`;
-        wheelStatusEl.textContent = `The wheel chose ${chosen}`;
+      let animationFailed = false;
+      try{
+        if (opts.spinMode !== "off"){
+          await spinWheel(enabled, chosen, opts.spinMode);
+        } else {
+          snapWheelToChosen(enabled, chosen);
+        }
+      } catch (error){
+        animationFailed = true;
+        console.warn("Wheel animation unavailable; using instant selection.", error);
+        restoreWheelAfterAnimationError();
+        snapWheelToChosen(enabled, chosen);
       }
 
       setPicked(chosen);
@@ -1562,6 +1584,30 @@
       isSpinning = false;
       updateEnabledCount();
       wheelStatusEl.textContent = `The wheel chose ${chosen}`;
+      if (animationFailed) showToast("Animation fallback used");
+    }
+
+    function snapWheelToChosen(enabled, chosen){
+        drawWheel(enabled);
+        const chosenIndex = enabled.indexOf(chosen);
+        const segmentDegrees = 360 / enabled.length;
+        const target = -chosenIndex * segmentDegrees;
+        const current = ((wheelRotation % 360) + 360) % 360;
+        wheelRotation += (target - current + 360) % 360;
+        wheelCanvas.style.transition = "none";
+        wheelCanvas.style.transform = `rotate(${wheelRotation}deg)`;
+        wheelStatusEl.textContent = `The wheel chose ${chosen}`;
+    }
+
+    function restoreWheelAfterAnimationError(){
+      wheelShell.classList.remove("spinning");
+      const placeholder = wheelStage.querySelector(".wheelPlaceholder");
+      if (placeholder){
+        wheelStage.insertBefore(wheelShell, placeholder);
+        placeholder.remove();
+      }
+      wheelFocus.classList.remove("show");
+      document.body.classList.remove("wheel-open");
     }
 
     function sleep(ms){ return new Promise(r => setTimeout(r, ms)); }
