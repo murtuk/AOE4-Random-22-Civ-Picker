@@ -217,9 +217,16 @@
       transform-origin:50% 0;
       z-index:3;
     }
-    .wheelPointer.tick{ animation:pointerTick .15s cubic-bezier(.2,.8,.3,1); }
+    .wheelPointer.tickA{ animation:pointerTickA .15s cubic-bezier(.2,.8,.3,1); }
+    .wheelPointer.tickB{ animation:pointerTickB .15s cubic-bezier(.2,.8,.3,1); }
     .wheelShell.mixing{ animation:wheelMix 1s cubic-bezier(.36,.07,.19,.97); }
-    @keyframes pointerTick{
+    @keyframes pointerTickA{
+      0%{ transform:translateX(-50%) rotate(0); }
+      42%{ transform:translateX(-50%) rotate(-12deg); }
+      72%{ transform:translateX(-50%) rotate(5deg); }
+      100%{ transform:translateX(-50%) rotate(0); }
+    }
+    @keyframes pointerTickB{
       0%{ transform:translateX(-50%) rotate(0); }
       42%{ transform:translateX(-50%) rotate(-12deg); }
       72%{ transform:translateX(-50%) rotate(5deg); }
@@ -531,7 +538,8 @@
     canvas.confetti.show{ display:block; }
 
     @media (prefers-reduced-motion: reduce){
-      .wheelPointer.tick{ animation:none; }
+      .wheelPointer.tickA,
+      .wheelPointer.tickB{ animation:none; }
     }
   </style>
 </head>
@@ -603,6 +611,8 @@
                 <span>Fast pick</span><span>Slow turn</span><span>Wheel off</span>
               </div>
             </div>
+            <label class="opt"><input type="checkbox" id="enlargeWheel" checked> Bring wheel forward while spinning</label>
+            <label class="opt"><input type="checkbox" id="tickSound" checked> Pointer tick sound</label>
             <label class="opt"><input type="checkbox" id="confettiToggle" checked> Confetti on pick</label>
           </div>
 
@@ -727,6 +737,8 @@
     const noRepeatEl = document.getElementById("noRepeat");
     const spinSpeedEl = document.getElementById("spinSpeed");
     const spinModeLabelEl = document.getElementById("spinModeLabel");
+    const enlargeWheelEl = document.getElementById("enlargeWheel");
+    const tickSoundEl = document.getElementById("tickSound");
     const confettiToggleEl = document.getElementById("confettiToggle");
 
     const enableAllBtn = document.getElementById("enableAll");
@@ -779,7 +791,13 @@
       { key:"slow", label:"Slow turn" },
       { key:"off", label:"Wheel off" }
     ];
-    const defaultOpts = { noRepeat:false, spinMode:"slow", confetti:true };
+    const defaultOpts = {
+      noRepeat:false,
+      spinMode:"slow",
+      enlargeWheel:true,
+      tickSound:true,
+      confetti:true
+    };
     const opts = { ...defaultOpts, ...loadJSON(KEY_OPTS, {}) };
     if (opts.noRepeatRuleVersion !== 2){
       opts.noRepeat = false;
@@ -793,6 +811,8 @@
     spinSpeedEl.value = String(initialSpinIndex);
     spinModeLabelEl.textContent = SPIN_MODES[initialSpinIndex].label;
     spinSpeedEl.setAttribute("aria-valuetext", SPIN_MODES[initialSpinIndex].label);
+    enlargeWheelEl.checked = opts.enlargeWheel !== false;
+    tickSoundEl.checked = opts.tickSound !== false;
     confettiToggleEl.checked = opts.confetti !== false;
     saveJSON(KEY_OPTS, opts);
 
@@ -803,6 +823,8 @@
     let isMixing = false;
     let wheelRotation = 0;
     const wheelIconCache = new Map();
+    const civCardElements = new Map();
+    let passingCardEl = null;
 
     const CIV_PALETTES = {
       "Abbasid Dynasty": ["#171a18", "#2d8a53"],
@@ -1121,43 +1143,93 @@
       document.body.classList.remove("wheel-open");
     }
 
-    function currentWheelAngle(){
-      const transform = getComputedStyle(wheelCanvas).transform;
-      if (!transform || transform === "none") return wheelRotation;
-      if (window.DOMMatrixReadOnly){
-        try{
-          const matrix = new DOMMatrixReadOnly(transform);
-          return Math.atan2(matrix.b, matrix.a) * 180 / Math.PI;
-        } catch {}
-      }
-      const match = transform.match(/matrix\(([^)]+)\)/);
-      const values = match && match[1] ? match[1].split(",").map(Number) : null;
-      return values ? Math.atan2(values[1], values[0]) * 180 / Math.PI : wheelRotation;
-    }
-
     function prefersReducedMotion(){
       return typeof window.matchMedia === "function" &&
         window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     }
 
-    let pointerTickTimer = null;
-    function tickPointer(){
-      if (!wheelPointerEl || prefersReducedMotion()) return;
-      if (pointerTickTimer) clearTimeout(pointerTickTimer);
-      wheelPointerEl.classList.remove("tick");
-      void wheelPointerEl.offsetWidth;
-      wheelPointerEl.classList.add("tick");
-      pointerTickTimer = setTimeout(() => wheelPointerEl.classList.remove("tick"), 170);
+    let tickAudioContext = null;
+    let tickAudioBuffer = null;
+    let lastTickSoundAt = 0;
+    function prepareTickSound(){
+      if (!opts.tickSound) return null;
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContextClass) return null;
+      try{
+        if (!tickAudioContext) tickAudioContext = new AudioContextClass();
+        if (!tickAudioBuffer){
+          const duration = .024;
+          const frameCount = Math.max(1, Math.floor(tickAudioContext.sampleRate * duration));
+          tickAudioBuffer = tickAudioContext.createBuffer(1, frameCount, tickAudioContext.sampleRate);
+          const samples = tickAudioBuffer.getChannelData(0);
+          for (let i = 0; i < frameCount; i++){
+            const time = i / tickAudioContext.sampleRate;
+            const envelope = Math.pow(1 - i / frameCount, 3);
+            samples[i] = (Math.sin(2 * Math.PI * 1050 * time) +
+              .45 * Math.sin(2 * Math.PI * 620 * time)) * envelope * .045;
+          }
+        }
+        if (tickAudioContext.state === "suspended"){
+          const resumeResult = tickAudioContext.resume();
+          if (resumeResult && typeof resumeResult.catch === "function") resumeResult.catch(() => {});
+        }
+        return tickAudioContext;
+      } catch {
+        return null;
+      }
     }
 
-    function trackPassingCivs(civs, duration){
+    function playTickSound(){
+      if (!opts.tickSound) return;
+      const now = performance.now();
+      if (now - lastTickSoundAt < 18) return;
+      const audioContext = prepareTickSound();
+      if (!audioContext || !tickAudioBuffer || audioContext.state !== "running") return;
+      try{
+        const source = audioContext.createBufferSource();
+        source.buffer = tickAudioBuffer;
+        source.connect(audioContext.destination);
+        source.start();
+        lastTickSoundAt = now;
+      } catch {}
+    }
+
+    let pointerTickTimer = null;
+    let pointerTickPhase = false;
+    function tickPointer(){
+      playTickSound();
+      if (!wheelPointerEl || prefersReducedMotion()) return;
+      if (pointerTickTimer) clearTimeout(pointerTickTimer);
+      wheelPointerEl.classList.remove("tickA", "tickB");
+      pointerTickPhase = !pointerTickPhase;
+      wheelPointerEl.classList.add(pointerTickPhase ? "tickA" : "tickB");
+      pointerTickTimer = setTimeout(() => wheelPointerEl.classList.remove("tickA", "tickB"), 170);
+    }
+
+    function spinEasedProgress(progress){
+      const x1 = .12, y1 = .68, x2 = .14, y2 = 1;
+      let t = Math.max(0, Math.min(1, progress));
+      for (let i = 0; i < 6; i++){
+        const inverse = 1 - t;
+        const estimatedX = 3 * inverse * inverse * t * x1 + 3 * inverse * t * t * x2 + t * t * t;
+        const slope = 3 * inverse * inverse * x1 + 6 * inverse * t * (x2 - x1) + 3 * t * t * (1 - x2);
+        if (Math.abs(slope) < .0001) break;
+        t = Math.max(0, Math.min(1, t - (estimatedX - progress) / slope));
+      }
+      const inverse = 1 - t;
+      return 3 * inverse * inverse * t * y1 + 3 * inverse * t * t * y2 + t * t * t;
+    }
+
+    function trackPassingCivs(civs, duration, startRotation, endRotation, startedAt){
       const segmentDegrees = 360 / civs.length;
-      const endAt = performance.now() + duration + 40;
+      const endAt = startedAt + duration;
       let previous = null;
 
       return new Promise(resolve => {
-        function tick(){
-          const angle = currentWheelAngle();
+        function tick(now){
+          const linearProgress = Math.max(0, Math.min(1, (now - startedAt) / duration));
+          const easedProgress = spinEasedProgress(linearProgress);
+          const angle = startRotation + (endRotation - startRotation) * easedProgress;
           const index = ((Math.round(-angle / segmentDegrees) % civs.length) + civs.length) % civs.length;
           const passing = civs[index];
           if (passing !== previous){
@@ -1165,7 +1237,7 @@
             setPassingCiv(passing);
             previous = passing;
           }
-          if (performance.now() < endAt){
+          if (now < endAt){
             requestAnimationFrame(tick);
           } else {
             resolve();
@@ -1181,7 +1253,7 @@
 
       drawWheel(civs);
       wheelFocusStatusEl.textContent = spinMode === "slow" ? "Slow turn · spinning…" : "Fast pick · spinning…";
-      const placeholder = await expandWheel();
+      const placeholder = opts.enlargeWheel ? await expandWheel() : null;
       const segmentDegrees = 360 / civs.length;
       const target = -chosenIndex * segmentDegrees;
       const current = ((wheelRotation % 360) + 360) % 360;
@@ -1191,19 +1263,25 @@
       const fastDuration = 3600 + Math.floor(Math.random() * 700);
       const duration = spinMode === "slow" ? fastDuration * 2 : fastDuration;
 
+      const startRotation = wheelRotation;
       wheelRotation += turns * 360 + alignment;
+      const endRotation = wheelRotation;
       wheelShell.classList.add("spinning");
       wheelCanvas.style.transition = `transform ${duration}ms cubic-bezier(.12,.68,.14,1)`;
       wheelCanvas.getBoundingClientRect();
+      const startedAt = performance.now();
       wheelCanvas.style.transform = `rotate(${wheelRotation}deg)`;
       wheelStatusEl.textContent = "Spinning…";
 
-      await Promise.all([sleep(duration + 80), trackPassingCivs(civs, duration)]);
+      await Promise.all([
+        sleep(duration + 80),
+        trackPassingCivs(civs, duration, startRotation, endRotation, startedAt)
+      ]);
       wheelShell.classList.remove("spinning");
       wheelStatusEl.textContent = `The wheel chose ${chosen}`;
       wheelFocusStatusEl.textContent = `The wheel chose ${chosen}`;
       setPassingCiv(chosen);
-      await collapseWheel(placeholder);
+      if (placeholder) await collapseWheel(placeholder);
     }
 
     function updateEnabledCount(){
@@ -1268,14 +1346,26 @@
       const t = civName ? titleFor(civName) : null;
       const url = t && imgCache[t] && imgCache[t].url ? imgCache[t].url : null;
 
-      container.innerHTML = "";
       if (url){
+        const existingImg = container.querySelector("img");
+        if (existingImg){
+          existingImg.alt = civName;
+          if (existingImg.getAttribute("src") !== url) existingImg.src = url;
+          return;
+        }
+        container.innerHTML = "";
         const img = new Image();
-	        img.referrerPolicy = "no-referrer";
+        img.referrerPolicy = "no-referrer";
         img.alt = civName;
         img.src = url;
         container.appendChild(img);
       } else {
+        const existingPlaceholder = container.querySelector(".ph");
+        if (existingPlaceholder){
+          existingPlaceholder.textContent = civName ? civName.trim()[0].toUpperCase() : "?";
+          return;
+        }
+        container.innerHTML = "";
         const ph = document.createElement("div");
         ph.className = "ph";
         ph.textContent = civName ? civName.trim()[0].toUpperCase() : "?";
@@ -1290,9 +1380,9 @@
       renderCivImage(focusCivIconEl, civName);
       focusCivNameEl.textContent = civName;
 
-      document.querySelectorAll(".civCard.passing").forEach(el => el.classList.remove("passing"));
-      const card = document.querySelector(`.civCard[data-name="${cssEscape(civName)}"]`);
-      if (card) card.classList.add("passing");
+      if (passingCardEl) passingCardEl.classList.remove("passing");
+      passingCardEl = civCardElements.get(civName) || null;
+      if (passingCardEl) passingCardEl.classList.add("passing");
     }
 
     function setPicked(civName){
@@ -1304,7 +1394,8 @@
       focusCivNameEl.textContent = civName || "—";
 
       document.querySelectorAll(".civCard").forEach(el => el.classList.remove("picked", "passing"));
-      const card = document.querySelector(`.civCard[data-name="${cssEscape(civName)}"]`);
+      passingCardEl = null;
+      const card = civCardElements.get(civName);
       if (card && enabledMap[civName] !== false) card.classList.add("picked");
     }
 
@@ -1325,6 +1416,8 @@
     function renderGrid(){
       const list = getFilteredCivs();
       civGrid.innerHTML = "";
+      civCardElements.clear();
+      passingCardEl = null;
 
       for (const civ of list){
         const card = document.createElement("div");
@@ -1362,6 +1455,7 @@
         card.appendChild(thumb);
         card.appendChild(tag);
         card.appendChild(name);
+        civCardElements.set(civ, card);
 
         card.addEventListener("click", () => {
           if (isSpinning || isMixing) return;
@@ -1543,6 +1637,7 @@
       if (isSpinning || isMixing) return;
       const enabled = getEnabledCivs();
       if (enabled.length === 0) return;
+      if (opts.tickSound) prepareTickSound();
 
       let chosen = null;
       if (noRepeatEl.checked){
@@ -1749,6 +1844,15 @@
       spinModeLabelEl.textContent = selected.label;
       spinSpeedEl.setAttribute("aria-valuetext", selected.label);
       saveJSON(KEY_OPTS, opts);
+    });
+    enlargeWheelEl.addEventListener("change", () => {
+      opts.enlargeWheel = enlargeWheelEl.checked;
+      saveJSON(KEY_OPTS, opts);
+    });
+    tickSoundEl.addEventListener("change", () => {
+      opts.tickSound = tickSoundEl.checked;
+      saveJSON(KEY_OPTS, opts);
+      if (opts.tickSound) prepareTickSound();
     });
     confettiToggleEl.addEventListener("change", () => {
       opts.confetti = confettiToggleEl.checked;
