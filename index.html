@@ -870,6 +870,7 @@
       "Malians":"#111315",
       "Abbasid Dynasty":"#f3f2e9"
     };
+    const SLICE_BORDER_COLOR = "#ead58a";
 
     
     function loadJSON(key, fallback){
@@ -1040,7 +1041,7 @@
         wheelCtx.closePath();
         wheelCtx.fillStyle = segmentFill;
         wheelCtx.fill();
-        wheelCtx.strokeStyle = mixHex(palette.accent, "#ffffff", .35);
+        wheelCtx.strokeStyle = SLICE_BORDER_COLOR;
         wheelCtx.lineWidth = 3;
         wheelCtx.stroke();
 
