@@ -278,6 +278,19 @@
     }
     button:hover{ background: rgba(255,255,255,.12); }
     button:disabled{ opacity:.5; cursor:not-allowed; }
+    #pickBtn{
+      flex:1 1 184px;
+      padding:13px 18px;
+      border-color:#ffe28a;
+      border-bottom-width:3px;
+      background:linear-gradient(180deg,#fff2aa,#dcae35);
+      color:#261a04;
+      box-shadow:0 5px 16px rgba(224,174,49,.28);
+      font-size:15px;
+      font-weight:1000;
+    }
+    #pickBtn:hover{ background:linear-gradient(180deg,#fff6c2,#e8bd4c); }
+    #pickBtn:disabled{ filter:saturate(.35); }
     #mixBtn{
       border-color:rgba(255,218,125,.42);
       background:rgba(255,218,125,.11);
@@ -488,6 +501,11 @@
     .history h3{ margin: 0; padding: 10px 0 6px; font-size: 13px; }
     ol{ margin: 0; padding-left: 18px; color: rgba(255,255,255,.82); }
     li{ margin: 6px 0; font-size: 12.5px; color: rgba(255,255,255,.85); }
+    .history .note{
+      margin-top:14px;
+      padding-top:12px;
+      border-top:1px solid var(--stroke);
+    }
 
     /* TOAST */
     .toast{
@@ -570,12 +588,12 @@
           <div class="btnRow">
             <button id="pickBtn">Pick random civ</button>
             <button id="mixBtn" title="Shuffle the civilization order on the wheel">Mix wheel</button>
-            <button id="copyBtn" disabled>Copy</button>
+            <button id="copyBtn" disabled>Copy history</button>
             <button id="resetBtn" title="Resets no-repeat bag, clears history, removes highlights">Reset</button>
           </div>
 
           <div class="opts">
-            <label class="opt"><input type="checkbox" id="noRepeat"> No repeats until all enabled civs are used</label>
+            <label class="opt"><input type="checkbox" id="noRepeat"> No repeats until all enabled civs selected once</label>
             <div class="turnControl">
               <div class="turnHeader">
                 <label for="spinSpeed">Pick animation</label>
@@ -594,15 +612,15 @@
             Run a local server (instructions below) and refresh.
           </div>
 
+        </div>
+
+        <div class="history">
+          <h3>History (latest 15)</h3>
+          <ol id="history" reversed></ol>
           <div class="note">
             Images are fetched from the Age of Empires Fandom wiki via the MediaWiki API (needs internet).
             If some civ pages don’t exist there, those civs will show a placeholder.
           </div>
-        </div>
-
-        <div class="history">
-          <h3>History (last 10)</h3>
-          <ol id="history"></ol>
         </div>
       </section>
 
@@ -674,6 +692,7 @@
     const KEY_ENABLED = "aoe4_visual_enabled_v1";
     const KEY_BAG = "aoe4_visual_bag_v1";
     const KEY_HISTORY = "aoe4_visual_history_v1";
+    const KEY_PICK_COUNT = "aoe4_visual_pick_count_v1";
     const KEY_OPTS = "aoe4_visual_opts_v1";
     const KEY_IMG_CACHE = "aoe4_visual_imgcache_v1";
     const KEY_WHEEL_ORDER = "aoe4_visual_wheel_order_v1";
@@ -734,7 +753,19 @@
     }
 
     let bag = loadJSON(KEY_BAG, []);
-    let history = loadJSON(KEY_HISTORY, []);
+    const storedHistory = loadJSON(KEY_HISTORY, []);
+    let pickCount = Math.max(0, Number(loadJSON(KEY_PICK_COUNT, 0)) || 0);
+    const inferredPickCount = Math.max(pickCount, Array.isArray(storedHistory) ? storedHistory.length : 0);
+    let history = (Array.isArray(storedHistory) ? storedHistory : [])
+      .map((entry, index) => typeof entry === "string"
+        ? { number:inferredPickCount - index, civ:entry }
+        : entry)
+      .filter(entry => entry && Number.isInteger(entry.number) && entry.number > 0 && typeof entry.civ === "string")
+      .sort((a, b) => b.number - a.number)
+      .slice(0, 15);
+    pickCount = Math.max(pickCount, ...history.map(entry => entry.number), 0);
+    saveJSON(KEY_HISTORY, history);
+    saveJSON(KEY_PICK_COUNT, pickCount);
     let imgCache = loadJSON(KEY_IMG_CACHE, {}); 
     const storedWheelOrder = loadJSON(KEY_WHEEL_ORDER, null);
     let wheelOrder = Array.isArray(storedWheelOrder) &&
@@ -751,6 +782,10 @@
     ];
     const defaultOpts = { noRepeat:false, spinMode:"slow", confetti:true };
     const opts = { ...defaultOpts, ...loadJSON(KEY_OPTS, {}) };
+    if (opts.noRepeatRuleVersion !== 2){
+      opts.noRepeat = false;
+      opts.noRepeatRuleVersion = 2;
+    }
     if (!SPIN_MODES.some(mode => mode.key === opts.spinMode)) opts.spinMode = "slow";
     delete opts.animate;
     delete opts.loadImages;
@@ -794,6 +829,25 @@
       "Sengoku Daimyo": ["#9f2935", "#d1a43a"],
       "Tughlaq Dynasty": ["#d8d8d1", "#35383a"],
       "Zhu Xis Legacy": ["#39877f", "#ecece6"]
+    };
+
+    const WHEEL_LABELS = {
+      "Knights Templar":"KT",
+      "Zhu Xis Legacy":"Zhu Xi",
+      "Macedonian Dynast":"Macedonian",
+      "Order of the Dragon":"OOTD",
+      "Sengoku Daimyo":"Sengoku",
+      "Tughlaq Dynasty":"Tughlaq",
+      "Abbasid Dynasty":"Abbasid",
+      "Delhi Sultanate":"Delhi",
+      "House of Lancaster":"Lancaster"
+    };
+
+    const FLAG_BORDER_COLORS = {
+      "Ottomans":"#f3f2e9",
+      "Mongols":"#e2bd43",
+      "Malians":"#111315",
+      "Abbasid Dynasty":"#f3f2e9"
     };
 
     
@@ -843,9 +897,8 @@
       return luminance > .62 ? "#201a10" : "#ffffff";
     }
 
-    function shortWheelLabel(name, count){
-      const max = count > 18 ? 13 : count > 12 ? 16 : 22;
-      return name.length > max ? `${name.slice(0, max - 1)}…` : name;
+    function shortWheelLabel(name){
+      return WHEEL_LABELS[name] || name;
     }
 
     function wheelIconFor(civ){
@@ -917,7 +970,7 @@
         wheelCtx.textBaseline = "middle";
         wheelCtx.fillText(civ.split(/\s+/).map(word => word[0]).join("").slice(0,3), x + width / 2, 1);
       }
-      wheelCtx.strokeStyle = palette.accent;
+      wheelCtx.strokeStyle = FLAG_BORDER_COLORS[civ] || palette.accent;
       wheelCtx.lineWidth = 3;
       wheelCtx.strokeRect(x - 1.5, y - 1.5, width + 3, height + 3);
       return width;
@@ -978,12 +1031,7 @@
         wheelCtx.save();
         wheelCtx.translate(cx, cy);
         wheelCtx.rotate(mid);
-        if (Math.cos(mid) < 0){
-          wheelCtx.rotate(Math.PI);
-          wheelCtx.textAlign = "left";
-        } else {
-          wheelCtx.textAlign = "right";
-        }
+        wheelCtx.textAlign = "right";
         const labelColor = readableText(outerColor);
         wheelCtx.fillStyle = labelColor;
         wheelCtx.shadowColor = labelColor === "#ffffff" ? "rgba(0,0,0,.8)" : "rgba(255,255,255,.55)";
@@ -991,7 +1039,7 @@
         wheelCtx.font = `900 ${civs.length > 18 ? 18 : civs.length > 12 ? 21 : 25}px system-ui, sans-serif`;
         wheelCtx.textBaseline = "middle";
         const labelEdge = radius - flagWidth - 52;
-        wheelCtx.fillText(shortWheelLabel(civ, civs.length), Math.cos(mid) < 0 ? -labelEdge : labelEdge, 0);
+        wheelCtx.fillText(shortWheelLabel(civ), labelEdge, 0);
         wheelCtx.restore();
       });
 
@@ -1166,21 +1214,33 @@
       return next;
     }
 
-    function rebuildBag(){
-      if (!noRepeatEl.checked) return;
-      const enabled = new Set(getEnabledCivs());
-      bag = bag.filter(x => enabled.has(x));
-      if (bag.length === 0) bag = [...enabled];
+    function resetNoRepeatCycle(){
+      bag = noRepeatEl.checked ? getEnabledCivs().slice() : [];
       saveJSON(KEY_BAG, bag);
+    }
+
+    function ensureNoRepeatBag(){
+      if (!noRepeatEl.checked){
+        if (bag.length) resetNoRepeatCycle();
+        return;
+      }
+      const enabled = getEnabledCivs();
+      const enabledSet = new Set(enabled);
+      const valid = bag.length > 0 &&
+        new Set(bag).size === bag.length &&
+        bag.every(civ => enabledSet.has(civ));
+      if (!valid) resetNoRepeatCycle();
     }
 
     function renderHistory(){
       historyEl.innerHTML = "";
-      for (const h of history.slice(0,10)){
+      for (const entry of history.slice(0,15)){
         const li = document.createElement("li");
-        li.textContent = h;
+        li.value = entry.number;
+        li.textContent = shortWheelLabel(entry.civ);
         historyEl.appendChild(li);
       }
+      copyBtn.disabled = history.length === 0;
     }
 
     function renderCivImage(container, civName){
@@ -1205,7 +1265,6 @@
     function setPassingCiv(civName){
       pickedNameEl.textContent = civName;
       pickedMetaEl.textContent = "Passing the pointer…";
-      copyBtn.disabled = true;
       renderCivImage(pickedEmblemEl, civName);
       renderCivImage(focusCivIconEl, civName);
       focusCivNameEl.textContent = civName;
@@ -1219,7 +1278,6 @@
       lastPicked = civName;
       pickedNameEl.textContent = civName || "—";
       pickedMetaEl.textContent = civName ? "Selected" : "Pick a civilization to start";
-      copyBtn.disabled = !civName;
       renderCivImage(pickedEmblemEl, civName);
       renderCivImage(focusCivIconEl, civName);
       focusCivNameEl.textContent = civName || "—";
@@ -1287,7 +1345,7 @@
           if (isSpinning || isMixing) return;
           enabledMap[civ] = !(enabledMap[civ] === true);
           saveJSON(KEY_ENABLED, enabledMap);
-          rebuildBag();
+          resetNoRepeatCycle();
           renderGrid();
           updateEnabledCount();
         });
@@ -1464,7 +1522,7 @@
 
       let chosen = null;
       if (noRepeatEl.checked){
-        rebuildBag();
+        ensureNoRepeatBag();
         chosen = pickRandom(bag);
         bag = bag.filter(x => x !== chosen);
         saveJSON(KEY_BAG, bag);
@@ -1493,9 +1551,11 @@
 
       setPicked(chosen);
 
-      history.unshift(chosen);
-      history = history.slice(0, 10);
+      pickCount += 1;
+      history.unshift({ number:pickCount, civ:chosen });
+      history = history.slice(0, 15);
       saveJSON(KEY_HISTORY, history);
+      saveJSON(KEY_PICK_COUNT, pickCount);
       renderHistory();
 
       if (confettiToggleEl.checked) fireConfetti();
@@ -1506,12 +1566,14 @@
 
     function sleep(ms){ return new Promise(r => setTimeout(r, ms)); }
 
-    async function copyPicked(){
-      const text = (pickedNameEl.textContent || "").trim();
-      if (!text || text === "—") return;
+    async function copyHistory(){
+      if (!history.length) return;
+      const text = history
+        .map(entry => `${entry.number}. ${shortWheelLabel(entry.civ)}`)
+        .join("\n");
       try{
         await navigator.clipboard.writeText(text);
-        showToast("Copied!");
+        showToast("History copied!");
       } catch {
         showToast("Clipboard blocked by browser.");
       }
@@ -1521,13 +1583,15 @@
     function resetAll(){
       bag = [];
       history = [];
+      pickCount = 0;
       saveJSON(KEY_BAG, bag);
       saveJSON(KEY_HISTORY, history);
+      saveJSON(KEY_PICK_COUNT, pickCount);
       renderHistory();
 
       document.querySelectorAll(".civCard").forEach(el => el.classList.remove("picked"));
       setPicked(null);
-      rebuildBag();
+      resetNoRepeatCycle();
       wheelStatusEl.textContent = `${getEnabledCivs().length} civilizations on the wheel`;
       showToast("Reset done");
     }
@@ -1610,19 +1674,19 @@
     
     pickBtn.addEventListener("click", doPick);
     mixBtn.addEventListener("click", mixWheel);
-    copyBtn.addEventListener("click", copyPicked);
+    copyBtn.addEventListener("click", copyHistory);
     resetBtn.addEventListener("click", resetAll);
 
     enableAllBtn.addEventListener("click", () => {
       for (const c of CIVS) enabledMap[c] = true;
       saveJSON(KEY_ENABLED, enabledMap);
-      rebuildBag();
+      resetNoRepeatCycle();
       renderGrid();
     });
     disableAllBtn.addEventListener("click", () => {
       for (const c of CIVS) enabledMap[c] = false;
       saveJSON(KEY_ENABLED, enabledMap);
-      rebuildBag();
+      resetNoRepeatCycle();
       renderGrid();
     });
 
@@ -1631,7 +1695,7 @@
     noRepeatEl.addEventListener("change", () => {
       opts.noRepeat = noRepeatEl.checked;
       saveJSON(KEY_OPTS, opts);
-      rebuildBag();
+      resetNoRepeatCycle();
     });
     spinSpeedEl.addEventListener("input", () => {
       const selected = SPIN_MODES[Number(spinSpeedEl.value)] || SPIN_MODES[1];
@@ -1656,7 +1720,7 @@
 
     renderHistory();
     renderGrid();
-    rebuildBag();
+    ensureNoRepeatBag();
 
     loadImages();
 
