@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="referrer" content="no-referrer">
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>AoE4 Visual Random Civ Picker</title>
+  <title>AoE4 Random Civ Picker</title>
   <style>
     :root{
       --bg0:#070a10; --bg1:#0b1020; --card:rgba(255,255,255,.06);
@@ -187,9 +187,18 @@
         0 0 24px rgba(238,182,58,.22);
       pointer-events:none;
     }
+    .wheelFocus .wheelRim{
+      inset:-8px;
+      border-width:8px;
+      border-color:#d7a93c;
+      box-shadow:
+        inset 0 0 0 3px rgba(255,245,196,.48),
+        0 0 0 3px #9b741f,
+        0 0 32px rgba(238,182,58,.32);
+    }
     .wheelHub{
       position:absolute; left:50%; top:50%;
-      width:clamp(68px, 20%, 92px); height:clamp(68px, 20%, 92px);
+      width:clamp(56px, 16%, 74px); height:clamp(56px, 16%, 74px);
       transform:translate(-50%,-50%);
       display:grid; place-items:center;
       border-radius:50%;
@@ -203,8 +212,33 @@
       text-align:center;
       pointer-events:none;
     }
-    .wheelHub span{ display:block; font-size:11px; }
-    .wheelHub b{ display:block; font-size:22px; }
+    .wheelHub div{
+      display:grid;
+      place-items:center;
+      gap:2px;
+      line-height:.92;
+    }
+    .wheelHub span{
+      display:block;
+      font-size:clamp(11px, 2.4vw, 13px);
+      letter-spacing:.65px;
+    }
+    .wheelHub b{
+      display:block;
+      font-size:clamp(16px, 3.7vw, 19px);
+      letter-spacing:.35px;
+    }
+    .wheelFocus .wheelHub{
+      width:clamp(56px, 17%, 112px);
+      height:clamp(56px, 17%, 112px);
+      border-width:4px;
+    }
+    .wheelFocus .wheelHub span{
+      font-size:clamp(12px, 3vw, 22px);
+    }
+    .wheelFocus .wheelHub b{
+      font-size:clamp(18px, 4.4vw, 32px);
+    }
     .wheelPointer{
       position:absolute;
       left:50%; top:-10px;
@@ -315,17 +349,25 @@
       user-select:none;
     }
     .opt input{ transform: scale(1.1); }
+    .opt.unavailable{
+      opacity:.38;
+      color:rgba(169,183,214,.62);
+      cursor:not-allowed;
+    }
+    .opt.unavailable input{ cursor:not-allowed; }
     .turnControl{
       padding:11px 12px 9px;
       border:1px solid var(--stroke);
       border-radius:14px;
       background:rgba(0,0,0,.16);
     }
-    .turnHeader,
-    .turnLabels{
+    .turnHeader{
       display:flex;
-      justify-content:space-between;
-      gap:10px;
+      justify-content:center;
+    }
+    .turnLabels{
+      display:grid;
+      grid-template-columns:repeat(3, minmax(0, 1fr));
     }
     .turnHeader{
       align-items:center;
@@ -333,12 +375,45 @@
       font-size:13px;
       color:var(--muted);
     }
-    .turnHeader strong{ color:#fff1a8; font-size:12px; }
     .turnControl input[type="range"]{
       width:100%;
+      height:22px;
       margin:0;
-      accent-color:#e4b43f;
+      appearance:none;
+      -webkit-appearance:none;
+      border:0;
+      border-radius:999px;
+      outline:none;
+      background:
+        radial-gradient(circle at 7px 50%, #fff1a8 0 3px, transparent 3.5px),
+        radial-gradient(circle at 50% 50%, #fff1a8 0 3px, transparent 3.5px),
+        radial-gradient(circle at calc(100% - 7px) 50%, #fff1a8 0 3px, transparent 3.5px),
+        linear-gradient(90deg, rgba(255,255,255,.22), #d7a93c) center / calc(100% - 14px) 4px no-repeat;
       cursor:pointer;
+    }
+    .turnControl input[type="range"]::-webkit-slider-thumb{
+      appearance:none;
+      -webkit-appearance:none;
+      width:18px;
+      height:18px;
+      border:2px solid #fff2b2;
+      border-radius:50%;
+      background:#d7a93c;
+      box-shadow:0 2px 7px rgba(0,0,0,.5);
+    }
+    .turnControl input[type="range"]::-moz-range-track{
+      height:4px;
+      border:0;
+      border-radius:999px;
+      background:transparent;
+    }
+    .turnControl input[type="range"]::-moz-range-thumb{
+      width:14px;
+      height:14px;
+      border:2px solid #fff2b2;
+      border-radius:50%;
+      background:#d7a93c;
+      box-shadow:0 2px 7px rgba(0,0,0,.5);
     }
     .turnLabels{
       margin-top:3px;
@@ -346,6 +421,9 @@
       font-size:10px;
       font-weight:800;
     }
+    .turnLabels span:first-child{ text-align:left; }
+    .turnLabels span:nth-child(2){ text-align:center; }
+    .turnLabels span:last-child{ text-align:right; }
 
     .note{
       margin-top: 10px;
@@ -506,13 +584,20 @@
     /* HISTORY */
     .history{ padding: 0 14px 14px; }
     .history h3{ margin: 0; padding: 10px 0 6px; font-size: 13px; }
-    ol{ margin: 0; padding-left: 18px; color: rgba(255,255,255,.82); }
+    ol{ margin: 0; padding-left: 42px; color: rgba(255,255,255,.82); }
     li{ margin: 6px 0; font-size: 12.5px; color: rgba(255,255,255,.85); }
     .history .note{
       margin-top:14px;
       padding-top:12px;
       border-top:1px solid var(--stroke);
     }
+    .credits{
+      margin-top:12px;
+      color:rgba(169,183,214,.78);
+      font-size:10.5px;
+      line-height:1.55;
+    }
+    .credits a{ color:#e6c868; }
 
     /* TOAST */
     .toast{
@@ -556,7 +641,7 @@
   <div class="wrap">
     <header>
       <div>
-        <h1>AoE4 Visual Random Civ Picker</h1>
+        <h1>AoE4 Random Civ Picker</h1>
         <p class="sub">
           <span>Click civ cards to include or exclude them.</span>
           <span class="spaceCallout">Press <kbd>Space</kbd> to spin.</span>
@@ -576,7 +661,7 @@
             <div class="wheelShell" id="wheelShell">
               <canvas id="wheelCanvas" width="720" height="720" aria-label="Enabled civilizations wheel"></canvas>
               <div class="wheelRim" aria-hidden="true"></div>
-              <div class="wheelHub" aria-hidden="true"><div><span>AGE OF</span><b>IV</b></div></div>
+              <div class="wheelHub" aria-hidden="true"><div><span>AOE</span><b>IV</b></div></div>
               <div class="wheelPointer" aria-hidden="true"></div>
             </div>
             <p class="wheelStatus" id="wheelStatus" aria-live="polite">Wheel ready</p>
@@ -603,16 +688,15 @@
             <label class="opt"><input type="checkbox" id="noRepeat"> No repeats until all enabled civs selected once</label>
             <div class="turnControl">
               <div class="turnHeader">
-                <label for="spinSpeed">Pick animation</label>
-                <strong id="spinModeLabel">Slow turn</strong>
+                <label for="spinSpeed">Wheel Options</label>
               </div>
               <input id="spinSpeed" type="range" min="0" max="2" step="1" value="1" aria-describedby="spinSpeedLabels">
               <div class="turnLabels" id="spinSpeedLabels" aria-hidden="true">
-                <span>Fast pick</span><span>Slow turn</span><span>Wheel off</span>
+                <span>Off</span><span>Slow Pick</span><span>Fast Pick</span>
               </div>
             </div>
-            <label class="opt"><input type="checkbox" id="enlargeWheel" checked> Bring wheel forward while spinning</label>
-            <label class="opt"><input type="checkbox" id="tickSound" checked> Pointer tick sound</label>
+            <label class="opt" id="enlargeWheelOption"><input type="checkbox" id="enlargeWheel" checked> Bring wheel forward while spinning</label>
+            <label class="opt" id="tickSoundOption"><input type="checkbox" id="tickSound" checked> Pointer tick sound</label>
             <label class="opt"><input type="checkbox" id="confettiToggle" checked> Confetti on pick</label>
           </div>
 
@@ -629,6 +713,10 @@
           <div class="note">
             Images are fetched from the Age of Empires Fandom wiki via the MediaWiki API (needs internet).
             If some civ pages don’t exist there, those civs will show a placeholder.
+          </div>
+          <div class="credits">
+            <div>Made by Murtuk.</div>
+            <div>Build orders: <a href="https://aoe4guides.com/builds?author=6Xo1JhcSOeXvsp1DcRVP1wMbFzG3" target="_blank" rel="noopener noreferrer">aoe4guides.com</a></div>
           </div>
         </div>
       </section>
@@ -736,7 +824,6 @@
 
     const noRepeatEl = document.getElementById("noRepeat");
     const spinSpeedEl = document.getElementById("spinSpeed");
-    const spinModeLabelEl = document.getElementById("spinModeLabel");
     const enlargeWheelEl = document.getElementById("enlargeWheel");
     const tickSoundEl = document.getElementById("tickSound");
     const confettiToggleEl = document.getElementById("confettiToggle");
@@ -787,9 +874,9 @@
         : CIVS.slice();
 
     const SPIN_MODES = [
-      { key:"fast", label:"Fast pick" },
-      { key:"slow", label:"Slow turn" },
-      { key:"off", label:"Wheel off" }
+      { key:"off", label:"Off" },
+      { key:"slow", label:"Slow Pick" },
+      { key:"fast", label:"Fast Pick" }
     ];
     const defaultOpts = {
       noRepeat:false,
@@ -809,11 +896,11 @@
     noRepeatEl.checked = !!opts.noRepeat;
     const initialSpinIndex = SPIN_MODES.findIndex(mode => mode.key === opts.spinMode);
     spinSpeedEl.value = String(initialSpinIndex);
-    spinModeLabelEl.textContent = SPIN_MODES[initialSpinIndex].label;
     spinSpeedEl.setAttribute("aria-valuetext", SPIN_MODES[initialSpinIndex].label);
     enlargeWheelEl.checked = opts.enlargeWheel !== false;
     tickSoundEl.checked = opts.tickSound !== false;
     confettiToggleEl.checked = opts.confetti !== false;
+    syncWheelDependentControls();
     saveJSON(KEY_OPTS, opts);
 
     totalCountEl.textContent = String(CIVS.length);
@@ -861,7 +948,8 @@
       "Tughlaq Dynasty":"Tughlaq",
       "Abbasid Dynasty":"Abbasid",
       "Delhi Sultanate":"Delhi",
-      "House of Lancaster":"Lancaster"
+      "House of Lancaster":"Lancaster",
+      "Jeanne d Arc":"JD"
     };
 
     const FLAG_BORDER_COLORS = {
@@ -879,6 +967,15 @@
     }
     function saveJSON(key, val){
       try{ localStorage.setItem(key, JSON.stringify(val)); } catch {}
+    }
+
+    function syncWheelDependentControls(){
+      const wheelIsOff = opts.spinMode === "off";
+      [enlargeWheelEl, tickSoundEl].forEach(control => {
+        control.disabled = wheelIsOff;
+        control.parentElement.classList.toggle("unavailable", wheelIsOff);
+        control.parentElement.setAttribute("aria-disabled", String(wheelIsOff));
+      });
     }
 
     function showToast(text){
@@ -917,6 +1014,11 @@
       const { r, g, b } = hexToRgb(background);
       const luminance = (r * .299 + g * .587 + b * .114) / 255;
       return luminance > .62 ? "#201a10" : "#ffffff";
+    }
+
+    function colorLuminance(background){
+      const { r, g, b } = hexToRgb(background);
+      return (r * .299 + g * .587 + b * .114) / 255;
     }
 
     function shortWheelLabel(name){
@@ -1012,11 +1114,6 @@
         wheelCtx.arc(cx, cy, radius, 0, Math.PI * 2);
         wheelCtx.fillStyle = "#252b38";
         wheelCtx.fill();
-        wheelCtx.fillStyle = "rgba(255,255,255,.58)";
-        wheelCtx.font = "800 30px system-ui, sans-serif";
-        wheelCtx.textAlign = "center";
-        wheelCtx.textBaseline = "middle";
-        wheelCtx.fillText("Enable a civilization", cx, cy - 56);
         wheelStatusEl.textContent = "Enable at least one civilization";
         return;
       }
@@ -1030,8 +1127,12 @@
         const mid = start + arc / 2;
         const palette = paletteFor(civ);
         const outerColor = mixHex(palette.primary, "#05070b", .16);
-        const segmentFill = wheelCtx.createRadialGradient(cx, cy, radius * .12, cx, cy, radius);
-        segmentFill.addColorStop(0, palette.accent);
+        const centerColor = colorLuminance(palette.primary) > .82
+          ? mixHex(palette.primary, "#05070b", .38)
+          : mixHex(palette.primary, "#ffffff", .72);
+        const segmentFill = wheelCtx.createRadialGradient(cx, cy, 0, cx, cy, radius);
+        segmentFill.addColorStop(0, centerColor);
+        segmentFill.addColorStop(.17, centerColor);
         segmentFill.addColorStop(.28, palette.primary);
         segmentFill.addColorStop(1, outerColor);
 
@@ -1059,9 +1160,9 @@
         wheelCtx.fillStyle = labelColor;
         wheelCtx.shadowColor = labelColor === "#ffffff" ? "rgba(0,0,0,.8)" : "rgba(255,255,255,.55)";
         wheelCtx.shadowBlur = 5;
-        wheelCtx.font = `900 ${civs.length > 18 ? 18 : civs.length > 12 ? 21 : 25}px system-ui, sans-serif`;
+        wheelCtx.font = `900 ${civs.length > 18 ? 18 : 21}px system-ui, sans-serif`;
         wheelCtx.textBaseline = "middle";
-        const labelEdge = radius - flagWidth - 52;
+        const labelEdge = radius - flagWidth - 36;
         wheelCtx.fillText(shortWheelLabel(civ), labelEdge, 0);
         wheelCtx.restore();
       });
@@ -1253,7 +1354,7 @@
       if (chosenIndex < 0) return;
 
       drawWheel(civs);
-      wheelFocusStatusEl.textContent = spinMode === "slow" ? "Slow turn · spinning…" : "Fast pick · spinning…";
+      wheelFocusStatusEl.textContent = spinMode === "slow" ? "Slow pick · spinning…" : "Fast pick · spinning…";
       const placeholder = opts.enlargeWheel ? await expandWheel() : null;
       const segmentDegrees = 360 / civs.length;
       const target = -chosenIndex * segmentDegrees;
@@ -1336,11 +1437,15 @@
       historyEl.innerHTML = "";
       for (const entry of history.slice(0,15)){
         const li = document.createElement("li");
-        li.value = entry.number;
+        li.value = displayPickNumber(entry.number);
         li.textContent = shortWheelLabel(entry.civ);
         historyEl.appendChild(li);
       }
       copyBtn.disabled = history.length === 0;
+    }
+
+    function displayPickNumber(number){
+      return ((Math.max(1, Number(number) || 1) - 1) % 999) + 1;
     }
 
     function renderCivImage(container, civName){
@@ -1638,7 +1743,7 @@
       if (isSpinning || isMixing) return;
       const enabled = getEnabledCivs();
       if (enabled.length === 0) return;
-      if (opts.tickSound) prepareTickSound();
+      if (opts.tickSound && opts.spinMode !== "off") prepareTickSound();
 
       let chosen = null;
       if (noRepeatEl.checked){
@@ -1711,7 +1816,7 @@
     async function copyHistory(){
       if (!history.length) return;
       const text = history
-        .map(entry => `${entry.number}. ${shortWheelLabel(entry.civ)}`)
+        .map(entry => `${displayPickNumber(entry.number)}. ${shortWheelLabel(entry.civ)}`)
         .join("\n");
       try{
         await navigator.clipboard.writeText(text);
@@ -1842,9 +1947,9 @@
     spinSpeedEl.addEventListener("input", () => {
       const selected = SPIN_MODES[Number(spinSpeedEl.value)] || SPIN_MODES[1];
       opts.spinMode = selected.key;
-      spinModeLabelEl.textContent = selected.label;
       spinSpeedEl.setAttribute("aria-valuetext", selected.label);
       saveJSON(KEY_OPTS, opts);
+      syncWheelDependentControls();
     });
     enlargeWheelEl.addEventListener("change", () => {
       opts.enlargeWheel = enlargeWheelEl.checked;
