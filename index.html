@@ -421,9 +421,37 @@
       font-size:10px;
       font-weight:800;
     }
+    .turnLabels span{
+      min-height:22px;
+      padding:3px 5px;
+      box-sizing:border-box;
+      border:1px solid transparent;
+      border-radius:8px;
+      transition:font-size .16s ease, color .16s ease, background .16s ease, border-color .16s ease, text-shadow .16s ease;
+    }
     .turnLabels span:first-child{ text-align:left; }
     .turnLabels span:nth-child(2){ text-align:center; }
     .turnLabels span:last-child{ text-align:right; }
+    .turnLabels span.active{
+      font-size:14px;
+      font-weight:1000;
+      text-shadow:0 0 12px currentColor;
+    }
+    .turnLabels span:first-child.active{
+      color:#ff9999;
+      border-color:rgba(255,125,125,.5);
+      background:rgba(255,125,125,.11);
+    }
+    .turnLabels span:nth-child(2).active{
+      color:#ffe28a;
+      border-color:rgba(255,226,138,.5);
+      background:rgba(255,226,138,.11);
+    }
+    .turnLabels span:last-child.active{
+      color:#8dffba;
+      border-color:rgba(125,255,178,.5);
+      background:rgba(125,255,178,.11);
+    }
 
     .note{
       margin-top: 10px;
@@ -717,6 +745,11 @@
           <div class="credits">
             <div>Made by Murtuk.</div>
             <div>Build orders: <a href="https://aoe4guides.com/builds?author=6Xo1JhcSOeXvsp1DcRVP1wMbFzG3" target="_blank" rel="noopener noreferrer">aoe4guides.com</a></div>
+            <div>Useful calculations:
+              <a href="https://www.reddit.com/r/aoe4/comments/1pdtg4w/ottomans_military_school_breakdown/" target="_blank" rel="noopener noreferrer">Military School breakdown</a> ·
+              <a href="https://www.reddit.com/r/aoe4/comments/1tuoll1/2nd_tc_payoff_time_generic_calculation/" target="_blank" rel="noopener noreferrer">2TC payoff time</a> ·
+              <a href="https://www.reddit.com/r/aoe4/comments/1tvswlf/how_many_villagers_to_build_a_tc_another_analysis/" target="_blank" rel="noopener noreferrer">TC build villagers</a>
+            </div>
           </div>
         </div>
       </section>
@@ -824,6 +857,7 @@
 
     const noRepeatEl = document.getElementById("noRepeat");
     const spinSpeedEl = document.getElementById("spinSpeed");
+    const spinModeLabelEls = Array.from(document.querySelectorAll("#spinSpeedLabels span"));
     const enlargeWheelEl = document.getElementById("enlargeWheel");
     const tickSoundEl = document.getElementById("tickSound");
     const confettiToggleEl = document.getElementById("confettiToggle");
@@ -897,6 +931,7 @@
     const initialSpinIndex = SPIN_MODES.findIndex(mode => mode.key === opts.spinMode);
     spinSpeedEl.value = String(initialSpinIndex);
     spinSpeedEl.setAttribute("aria-valuetext", SPIN_MODES[initialSpinIndex].label);
+    syncSpinModeLabels(initialSpinIndex);
     enlargeWheelEl.checked = opts.enlargeWheel !== false;
     tickSoundEl.checked = opts.tickSound !== false;
     confettiToggleEl.checked = opts.confetti !== false;
@@ -975,6 +1010,12 @@
         control.disabled = wheelIsOff;
         control.parentElement.classList.toggle("unavailable", wheelIsOff);
         control.parentElement.setAttribute("aria-disabled", String(wheelIsOff));
+      });
+    }
+
+    function syncSpinModeLabels(selectedIndex){
+      spinModeLabelEls.forEach((label, index) => {
+        label.classList.toggle("active", index === selectedIndex);
       });
     }
 
@@ -1948,6 +1989,7 @@
       const selected = SPIN_MODES[Number(spinSpeedEl.value)] || SPIN_MODES[1];
       opts.spinMode = selected.key;
       spinSpeedEl.setAttribute("aria-valuetext", selected.label);
+      syncSpinModeLabels(Number(spinSpeedEl.value));
       saveJSON(KEY_OPTS, opts);
       syncWheelDependentControls();
     });
