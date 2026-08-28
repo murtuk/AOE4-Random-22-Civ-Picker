@@ -242,14 +242,21 @@
     .wheelPointer{
       position:absolute;
       left:50%; top:-10px;
-      width:0; height:0;
+      width:34px; height:36px;
       transform:translateX(-50%);
-      border-left:15px solid transparent;
-      border-right:15px solid transparent;
-      border-top:31px solid #fff1a8;
+      border:0;
+      background:#ead58a;
+      clip-path:polygon(0 0, 100% 0, 50% 100%);
       filter:drop-shadow(0 4px 2px rgba(0,0,0,.55));
       transform-origin:50% 0;
       z-index:3;
+    }
+    .wheelPointer::after{
+      content:"";
+      position:absolute;
+      inset:3px 4px 5px;
+      background:#d2a23c;
+      clip-path:polygon(0 0, 100% 0, 50% 100%);
     }
     .wheelPointer.tickA{ animation:pointerTickA .15s cubic-bezier(.2,.8,.3,1); }
     .wheelPointer.tickB{ animation:pointerTickB .15s cubic-bezier(.2,.8,.3,1); }
@@ -650,10 +657,6 @@
     }
     canvas.confetti.show{ display:block; }
 
-    @media (prefers-reduced-motion: reduce){
-      .wheelPointer.tickA,
-      .wheelPointer.tickB{ animation:none; }
-    }
   </style>
 </head>
 <body>
@@ -987,6 +990,13 @@
       "Jeanne d Arc":"JD"
     };
 
+    const CIV_DISPLAY_NAMES = {
+      "HRE":"Holy Roman Empire",
+      "Jeanne d Arc":"Jeanne d’Arc",
+      "Macedonian Dynast":"Macedonian Dynasty",
+      "Zhu Xis Legacy":"Zhu Xi’s Legacy"
+    };
+
     const FLAG_BORDER_COLORS = {
       "Ottomans":"#f3f2e9",
       "Mongols":"#e2bd43",
@@ -1066,6 +1076,10 @@
       return WHEEL_LABELS[name] || name;
     }
 
+    function displayCivName(name){
+      return CIV_DISPLAY_NAMES[name] || name;
+    }
+
     function wheelIconFor(civ){
       const cachedImage = imgCache[titleFor(civ)];
       const url = cachedImage && cachedImage.url;
@@ -1083,7 +1097,7 @@
         entry.ready = true;
         if (!isSpinning && !isMixing){
           drawWheel(getEnabledCivs());
-          if (lastPicked) wheelStatusEl.textContent = `The wheel chose ${lastPicked}`;
+          if (lastPicked) wheelStatusEl.textContent = `The wheel chose ${displayCivName(lastPicked)}`;
         }
       };
       entry.img.onerror = () => { entry.failed = true; };
@@ -1286,11 +1300,6 @@
       document.body.classList.remove("wheel-open");
     }
 
-    function prefersReducedMotion(){
-      return typeof window.matchMedia === "function" &&
-        window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    }
-
     let tickAudioContext = null;
     let tickAudioBuffer = null;
     let lastTickSoundAt = 0;
@@ -1341,7 +1350,7 @@
     let pointerTickPhase = false;
     function tickPointer(){
       playTickSound();
-      if (!wheelPointerEl || prefersReducedMotion()) return;
+      if (!wheelPointerEl) return;
       if (pointerTickTimer) clearTimeout(pointerTickTimer);
       wheelPointerEl.classList.remove("tickA", "tickB");
       pointerTickPhase = !pointerTickPhase;
@@ -1421,8 +1430,8 @@
         trackPassingCivs(civs, duration, startRotation, endRotation, startedAt)
       ]);
       wheelShell.classList.remove("spinning");
-      wheelStatusEl.textContent = `The wheel chose ${chosen}`;
-      wheelFocusStatusEl.textContent = `The wheel chose ${chosen}`;
+      wheelStatusEl.textContent = `The wheel chose ${displayCivName(chosen)}`;
+      wheelFocusStatusEl.textContent = `The wheel chose ${displayCivName(chosen)}`;
       setPassingCiv(chosen);
       if (placeholder) await collapseWheel(placeholder);
     }
@@ -1496,14 +1505,14 @@
       if (url){
         const existingImg = container.querySelector("img");
         if (existingImg){
-          existingImg.alt = civName;
+          existingImg.alt = displayCivName(civName);
           if (existingImg.getAttribute("src") !== url) existingImg.src = url;
           return;
         }
         container.innerHTML = "";
         const img = new Image();
         img.referrerPolicy = "no-referrer";
-        img.alt = civName;
+        img.alt = displayCivName(civName);
         img.src = url;
         container.appendChild(img);
       } else {
@@ -1521,11 +1530,11 @@
     }
 
     function setPassingCiv(civName){
-      pickedNameEl.textContent = civName;
+      pickedNameEl.textContent = displayCivName(civName);
       pickedMetaEl.textContent = "Passing the pointer…";
       renderCivImage(pickedEmblemEl, civName);
       renderCivImage(focusCivIconEl, civName);
-      focusCivNameEl.textContent = civName;
+      focusCivNameEl.textContent = displayCivName(civName);
 
       if (passingCardEl) passingCardEl.classList.remove("passing");
       passingCardEl = civCardElements.get(civName) || null;
@@ -1534,11 +1543,11 @@
 
     function setPicked(civName){
       lastPicked = civName;
-      pickedNameEl.textContent = civName || "—";
+      pickedNameEl.textContent = civName ? displayCivName(civName) : "—";
       pickedMetaEl.textContent = civName ? "Selected" : "Pick a civilization to start";
       renderCivImage(pickedEmblemEl, civName);
       renderCivImage(focusCivIconEl, civName);
-      focusCivNameEl.textContent = civName || "—";
+      focusCivNameEl.textContent = civName ? displayCivName(civName) : "—";
 
       document.querySelectorAll(".civCard").forEach(el => el.classList.remove("picked", "passing"));
       passingCardEl = null;
@@ -1554,9 +1563,9 @@
 
     
     function getFilteredCivs(){
-      const q = searchEl.value.trim().toLowerCase();
+      const q = searchEl.value.trim().toLowerCase().replace(/’/g, "'");
       if (!q) return CIVS.slice();
-      return CIVS.filter(c => c.toLowerCase().includes(q));
+      return CIVS.filter(c => displayCivName(c).toLowerCase().replace(/’/g, "'").includes(q));
     }
 
     
@@ -1582,7 +1591,7 @@
         if (cached){
           const img = new Image();
           img.referrerPolicy = "no-referrer";
-          img.alt = civ;
+          img.alt = displayCivName(civ);
           img.src = cached;
           thumb.appendChild(img);
         } else {
@@ -1597,7 +1606,7 @@
 
         const name = document.createElement("div");
         name.className = "civName";
-        name.textContent = civ;
+        name.textContent = displayCivName(civ);
 
         card.appendChild(thumb);
         card.appendChild(tag);
@@ -1748,26 +1757,21 @@
       if (isSpinning || isMixing || getEnabledCivs().length < 2) return;
 
       const originalOrder = wheelOrder.join("|");
-      const reducedMotion = prefersReducedMotion();
       isMixing = true;
       updateEnabledCount();
       wheelStatusEl.textContent = "Mixing the wheel order…";
 
-      if (reducedMotion){
+      const started = performance.now();
+      wheelShell.classList.add("mixing");
+      for (let step = 0; step < 9; step++){
+        await sleep(100);
         wheelOrder = shuffled(wheelOrder);
-      } else {
-        const started = performance.now();
-        wheelShell.classList.add("mixing");
-        for (let step = 0; step < 9; step++){
-          await sleep(100);
-          wheelOrder = shuffled(wheelOrder);
-          drawWheel(getEnabledCivs());
-          wheelStatusEl.textContent = "Mixing the wheel order…";
-        }
-        const remaining = 1000 - (performance.now() - started);
-        if (remaining > 0) await sleep(remaining);
-        wheelShell.classList.remove("mixing");
+        drawWheel(getEnabledCivs());
+        wheelStatusEl.textContent = "Mixing the wheel order…";
       }
+      const remaining = 1000 - (performance.now() - started);
+      if (remaining > 0) await sleep(remaining);
+      wheelShell.classList.remove("mixing");
 
       if (wheelOrder.join("|") === originalOrder){
         wheelOrder = [...wheelOrder.slice(1), wheelOrder[0]];
@@ -1825,7 +1829,7 @@
       if (confettiToggleEl.checked) fireConfetti();
       isSpinning = false;
       updateEnabledCount();
-      wheelStatusEl.textContent = `The wheel chose ${chosen}`;
+      wheelStatusEl.textContent = `The wheel chose ${displayCivName(chosen)}`;
       if (animationFailed) showToast("Animation fallback used");
     }
 
@@ -1838,7 +1842,7 @@
         wheelRotation += (target - current + 360) % 360;
         wheelCanvas.style.transition = "none";
         wheelCanvas.style.transform = `rotate(${wheelRotation}deg)`;
-        wheelStatusEl.textContent = `The wheel chose ${chosen}`;
+        wheelStatusEl.textContent = `The wheel chose ${displayCivName(chosen)}`;
     }
 
     function restoreWheelAfterAnimationError(){
