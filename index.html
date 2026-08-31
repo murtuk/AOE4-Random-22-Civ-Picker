@@ -234,7 +234,7 @@ print('data:image/webp;base64,'+base64.b64encode(b.getvalue()).decode())" newciv
       /* Deliberately a flat scrim, not backdrop-filter: a blurred backdrop
          is re-rendered every frame while the wheel turns and halves the
          frame rate on modest hardware. */
-      background:rgba(4,7,13,.93);
+      background:#04070d;
       opacity:0;
       visibility:hidden;
       pointer-events:none;
@@ -302,10 +302,12 @@ print('data:image/webp;base64,'+base64.b64encode(b.getvalue()).decode())" newciv
     #wheelCanvas{
       width:100%; height:100%;
       display:block;
-      border-radius:50%;
+      /* No border-radius: the wheel is drawn as a circle well inside the
+         canvas bounds, so a rounded clip changes nothing visually but asks
+         the compositor to mask a large layer on every frame of the spin.
+         No translateZ(0) either — the inline rotate() overrides it, so it
+         never did anything; will-change alone does the promotion. */
       will-change:transform;
-      transform:translateZ(0);
-      backface-visibility:hidden;
     }
     .wheelRim{
       position:absolute; inset:-5px;
@@ -372,14 +374,9 @@ print('data:image/webp;base64,'+base64.b64encode(b.getvalue()).decode())" newciv
       background:#d2a23c;
       clip-path:polygon(0 0, 100% 0, 50% 100%);
     }
-    .wheelPointer.tick{ animation:pointerTick .15s cubic-bezier(.2,.8,.3,1); }
+    /* The pointer wiggle is driven from JS (see tickPointer) so it can be
+       restarted without forcing a layout. */
     .wheelShell.mixing{ animation:wheelMix 1s cubic-bezier(.36,.07,.19,.97); }
-    @keyframes pointerTick{
-      0%{ transform:translateX(-50%) rotate(0); }
-      42%{ transform:translateX(-50%) rotate(-12deg); }
-      72%{ transform:translateX(-50%) rotate(5deg); }
-      100%{ transform:translateX(-50%) rotate(0); }
-    }
     @keyframes wheelMix{
       0%,100%{ transform:translateX(0) rotate(0) scale(1); }
       14%{ transform:translateX(-7px) rotate(-2deg) scale(.98); }
@@ -646,9 +643,12 @@ print('data:image/webp;base64,'+base64.b64encode(b.getvalue()).decode())" newciv
       outline: 2px solid rgba(125,255,178,.9);
       box-shadow: 0 0 0 6px rgba(125,255,178,.10), var(--shadow);
     }
+    /* No blurred shadow here: this class moves between cards while the wheel
+       spins, and a 40px blur repaints the card every time it does. The flat
+       spread ring below costs almost nothing. */
     .civCell.passing .civCard{
       outline:2px solid rgba(255,218,125,.95);
-      box-shadow:0 0 0 6px rgba(255,218,125,.12), var(--shadow);
+      box-shadow:0 0 0 6px rgba(255,218,125,.12);
     }
     .civCell.banned .civCard{
       outline:2px solid rgba(255,125,125,.85);
@@ -1027,7 +1027,7 @@ print('data:image/webp;base64,'+base64.b64encode(b.getvalue()).decode())" newciv
             <button id="mixBtn" type="button" title="Shuffle the civilization order on the wheel">Mix wheel</button>
             <button id="shareBtn" type="button" title="Copy a link that restores this exact setup">Copy share link</button>
             <button id="copyBtn" type="button" disabled>Copy history</button>
-            <button id="resetBtn" type="button" title="Clears history and the last draft, resets the no-repeat bag, and puts the wheel back in list order">Reset</button>
+            <button id="resetBtn" type="button" title="Turns every civ back on, clears history and the last draft, resets the no-repeat bag, and puts the wheel back in list order. Weights keep their values — use Reset weights for those.">Reset</button>
           </div>
 
           <div class="opts">
@@ -1073,7 +1073,7 @@ print('data:image/webp;base64,'+base64.b64encode(b.getvalue()).decode())" newciv
             <div>Useful calculations:
               <a href="https://www.reddit.com/r/aoe4/comments/1pdtg4w/ottomans_military_school_breakdown/" target="_blank" rel="noopener noreferrer">Military School breakdown</a> ·
               <a href="https://www.reddit.com/r/aoe4/comments/1tuoll1/2nd_tc_payoff_time_generic_calculation/" target="_blank" rel="noopener noreferrer">2TC payoff time</a> ·
-              <a href="https://www.reddit.com/r/aoe4/comments/1tvswlf/how_many_villagers_to_build_a_tc_another_analysis/" target="_blank" rel="noopener noreferrer">TC build villagers</a>
+              <a href="https://www.reddit.com/r/aoe4/comments/1tvswlf/how_many_villagers_to_build_a_tc_another_analysis/" target="_blank" rel="noopener noreferrer">How many vils to build TC</a>
             </div>
           </div>
         </div>
@@ -1575,10 +1575,6 @@ try {
   let isMixing = false;
   let isDrafting = false;
   let wheelRotation = 0;
-  // The wheel's visible angle is always (canvas drawing offset + CSS rotation),
-  // i.e. bakedDeg + (wheelRotation - bakedDeg). Baking the resting angle into
-  // the drawing is what lets every slice label sit upright once it stops.
-  let bakedDeg = 0;
   let passingCardEl = null;
   let currentSlices = [];
 
@@ -1810,7 +1806,7 @@ try {
 
   const TAU = Math.PI * 2;
   const BASE_ANGLE = -Math.PI / 2;   // where the pointer sits (top of the wheel)
-  const WHEEL_MAX_PX = 1000;         // backing-store cap: keeps the spin cheap
+  const WHEEL_MAX_PX = 1400;         // room for a 650px shell at 2x, see below
   const DEG = 180 / Math.PI;
   // Flag artwork is 16:9, so the badge on each slice is too — no cropping.
   const FLAG_RATIO = 9 / 16;
@@ -1856,8 +1852,14 @@ try {
   /* ---- canvas sizing: crisp on retina, capped so old GPUs stay smooth ---- */
   function sizeWheelCanvas() {
     const cssSize = Math.round(wheelShell.getBoundingClientRect().width) || 330;
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    const px = Math.max(360, Math.min(WHEEL_MAX_PX, Math.round(cssSize * dpr)));
+    // Whole-number device-pixel ratio ONLY. The old cap turned a 650px shell on
+    // a retina screen into a 1000px backing store — a 1.54x scale, which makes
+    // the browser resample the texture on every frame of the spin instead of
+    // blitting it. Small screens stayed under the cap and were unaffected,
+    // which is why a phone looked smooth while a Mac did not.
+    let ratio = Math.min(2, Math.max(1, Math.round(window.devicePixelRatio || 1)));
+    while (ratio > 1 && cssSize * ratio > WHEEL_MAX_PX) ratio -= 1;
+    const px = Math.max(360, Math.round(cssSize * ratio));
     if (px === wheelCanvas.width) return false;
     wheelCanvas.width = px;
     wheelCanvas.height = px;
@@ -1926,9 +1928,8 @@ try {
     return width;
   }
 
-  function drawWheel(slices, offsetDeg) {
+  function drawWheel(slices) {
     currentSlices = slices || computeSlices();
-    const offset = (offsetDeg === undefined ? bakedDeg : offsetDeg) / DEG;
     const size = wheelCanvas.width;
     const scale = size / 720;              // all magic numbers below are @720
     const centre = size / 2;
@@ -1946,7 +1947,7 @@ try {
     }
 
     currentSlices.forEach(function (slice) {
-      const start = BASE_ANGLE + slice.start + offset;
+      const start = BASE_ANGLE + slice.start;
       const end = start + slice.arc;
       const mid = start + slice.arc / 2;
       const palette = paletteFor(slice.id);
@@ -1980,14 +1981,14 @@ try {
       const slot = 2 * (radius * 0.55) * Math.tan(Math.min(slice.arc, Math.PI * 0.6) / 2);
       const fontPx = Math.min(21 * scale, slot * 0.55);
       if (fontPx >= 9 * scale && flagWidth > 0) {
-        // Slices on the left half get their text rotated a further 180° so it
-        // reads upright instead of upside down. Flags stay unflipped.
-        const flip = Math.cos(mid) < 0;
-        const dir = flip ? -1 : 1;
-        if (flip) wheelCtx.rotate(Math.PI);
-
+        // Every label runs along its own radius, reading inwards-to-outwards.
+        // A slice at the top therefore reads bottom-to-top with the feet of
+        // the letters facing right, and — because the orientation is fixed
+        // relative to the slice, not to the screen — it stays that way while
+        // the wheel turns. Do not add a "keep it upright" flip here: it looks
+        // tidy at one angle and scrambled at every other.
         const labelColor = readableText(outer);
-        wheelCtx.textAlign = flip ? "left" : "right";
+        wheelCtx.textAlign = "right";
         wheelCtx.textBaseline = "middle";
         wheelCtx.fillStyle = labelColor;
         wheelCtx.shadowColor = labelColor === "#ffffff" ? "rgba(0,0,0,.8)" : "rgba(255,255,255,.55)";
@@ -1995,7 +1996,7 @@ try {
         wheelCtx.font = "900 " + Math.round(fontPx) + "px system-ui, sans-serif";
         const labelEdge = radius - flagWidth - 36 * scale;
         const label = shortOf(slice.id);
-        wheelCtx.fillText(label, dir * labelEdge, 0);
+        wheelCtx.fillText(label, labelEdge, 0);
 
         const w = weightOf(slice.id);
         if (w > 1) {
@@ -2003,7 +2004,7 @@ try {
           wheelCtx.font = "1000 " + Math.round(fontPx * 0.78) + "px system-ui, sans-serif";
           wheelCtx.fillStyle = "#ffe9ad";
           wheelCtx.shadowColor = "rgba(0,0,0,.85)";
-          wheelCtx.fillText("×" + w, dir * (labelEdge - labelWidth - 8 * scale), 0);
+          wheelCtx.fillText("×" + w, labelEdge - labelWidth - 8 * scale, 0);
         }
       }
       wheelCtx.restore();
@@ -2016,6 +2017,16 @@ try {
   }
 
   function applyRotation(deg, animate, durationMs) {
+    // A transition from an unset transform is a matrix->rotate() interpolation,
+    // and Chrome takes the SHORTEST path through that: asking for rotate(2000deg)
+    // from `none` drifts ~160 degrees instead of spinning five times round.
+    // Once an explicit rotate() is in place it interpolates angles properly, so
+    // make sure one always is before starting an animated spin.
+    if (animate && !wheelCanvas.style.transform) {
+      wheelCanvas.style.transition = "none";
+      wheelCanvas.style.transform = "rotate(" + wheelRotation + "deg)";
+      void wheelCanvas.offsetWidth;
+    }
     wheelRotation = deg;
     wheelCanvas.style.transition = animate
       ? "transform " + durationMs + "ms " + SPIN_TIMING_CSS
@@ -2023,15 +2034,7 @@ try {
     // Force a style flush so the transition change lands before the transform;
     // without it the browser batches both and the spin jumps instead of easing.
     void wheelCanvas.offsetWidth;
-    wheelCanvas.style.transform = "rotate(" + (deg - bakedDeg) + "deg)";
-  }
-
-  // Redraw the wheel with `deg` baked into the canvas and the CSS rotation
-  // compensated, so nothing moves on screen but the labels are re-oriented.
-  function bakeWheel(deg, slices) {
-    bakedDeg = normDeg(deg);
-    drawWheel(slices || currentSlices, bakedDeg);
-    applyRotation(wheelRotation, false);
+    wheelCanvas.style.transform = "rotate(" + deg + "deg)";
   }
 
   /* ==========================================================================
@@ -2128,17 +2131,37 @@ try {
     } catch (err) { /* ignore */ }
   }
 
-  let pointerTickTimer = null;
+  // One reusable Web Animation, rewound on each tick. The obvious way to
+  // restart a CSS animation is to toggle a class and read offsetWidth, but
+  // that forces a synchronous layout of the whole document — once per frame
+  // through the fast part of a spin, which is exactly when there is no room
+  // for it. Rewinding an existing animation costs no layout at all.
+  const POINTER_KEYFRAMES = [
+    { transform: "translateX(-50%) rotate(0deg)", offset: 0 },
+    { transform: "translateX(-50%) rotate(-12deg)", offset: 0.42 },
+    { transform: "translateX(-50%) rotate(5deg)", offset: 0.72 },
+    { transform: "translateX(-50%) rotate(0deg)", offset: 1 }
+  ];
+  const MIN_TICK_MS = 14;
+  let pointerAnimation = null;
+  let lastPointerTickAt = 0;
+
   function tickPointer() {
+    const now = performance.now();
+    if (now - lastPointerTickAt < MIN_TICK_MS) return;
+    lastPointerTickAt = now;
     playTick();
-    if (!wheelPointerEl) return;
-    if (pointerTickTimer) clearTimeout(pointerTickTimer);
-    wheelPointerEl.classList.remove("tick");
-    void wheelPointerEl.offsetWidth;           // restart the keyframes
-    wheelPointerEl.classList.add("tick");
-    pointerTickTimer = setTimeout(function () {
-      wheelPointerEl.classList.remove("tick");
-    }, 170);
+    if (!wheelPointerEl || typeof wheelPointerEl.animate !== "function") return;
+    try {
+      if (!pointerAnimation) {
+        pointerAnimation = wheelPointerEl.animate(POINTER_KEYFRAMES,
+          { duration: 150, easing: "cubic-bezier(.2,.8,.3,1)", fill: "none" });
+      }
+      pointerAnimation.currentTime = 0;
+      pointerAnimation.play();
+    } catch (err) {
+      pointerAnimation = null;
+    }
   }
 
   /* ==========================================================================
@@ -2180,10 +2203,16 @@ try {
   // Follows the pointer during the spin so the ticker/tick sound stay honest.
   // Resolves early on skip, and has a hard timeout so a backgrounded tab
   // (where requestAnimationFrame stops firing) can never wedge the UI.
+  // The name and flag under the pointer refresh at TICKER_HZ rather than on
+  // every frame: at the start of a spin slices go past faster than anyone can
+  // read, and each update swaps two large images and moves a card highlight.
+  const TICKER_MS = 1000 / 8;
+
   function trackPointer(slices, duration, from, to, startedAt) {
     return new Promise(function (resolve) {
       let finished = false;
       let previous = -1;
+      let lastTickerAt = -Infinity;
 
       const done = function () {
         if (finished) return;
@@ -2202,7 +2231,10 @@ try {
         if (index !== previous) {
           if (previous !== -1) tickPointer();
           previous = index;
-          if (slices[index]) setPassingCiv(slices[index].id);
+          if (slices[index] && now - lastTickerAt >= TICKER_MS) {
+            lastTickerAt = now;
+            setPassingCiv(slices[index].id);
+          }
         }
         if (now - startedAt < duration) requestAnimationFrame(frame);
         else done();
@@ -2303,7 +2335,7 @@ try {
     const index = sliceIndexOf(slices, chosenId);
     if (index < 0) return;
 
-    bakeWheel(0, slices);      // radial labels while it turns, like a real wheel
+    drawWheel(slices);
     wheelFocusStatusEl.textContent = spinLabel
       ? "Picking for " + spinLabel + "…"
       : (spinMode === "slow" ? "Slow pick" : "Fast pick") + " · spinning…";
@@ -2340,7 +2372,6 @@ try {
     // tracker's pending frames bail out instead of moving the ticker on.
     if (skipRequested) applyRotation(to, false);   // jump to the resting angle
 
-    bakeWheel(wheelRotation);  // it has stopped — stand the labels up again
     const landed = spinLabel
       ? spinLabel + " gets " + nameOf(chosenId)
       : "The wheel chose " + nameOf(chosenId);
@@ -2352,11 +2383,10 @@ try {
 
   // Instant version, used when spin speed is Off (and as the animation fallback).
   function snapWheelTo(slices, chosenId) {
+    drawWheel(slices);
     const index = sliceIndexOf(slices, chosenId);
-    if (index < 0) { bakeWheel(bakedDeg, slices); return; }
-    bakeWheel(0, slices);
+    if (index < 0) return;
     applyRotation(rotationForSlice(slices, index), false);
-    bakeWheel(wheelRotation);
   }
 
   /* ==========================================================================
@@ -2606,10 +2636,15 @@ try {
     pickHistory.slice(0, HISTORY_LIMIT).forEach(function (entry) {
       historyEl.appendChild(recapRow("#" + entry.n, entry.id));
     });
-    const empty = pickHistory.length === 0;
-    historyEmptyEl.hidden = !empty;
-    copyBtn.disabled = empty;
-    clearHistoryBtn.disabled = empty;
+    historyEmptyEl.hidden = pickHistory.length !== 0;
+    syncHistoryButtons();
+  }
+
+  // Owned in one place so renderHistory and syncUi can't disagree about it.
+  function syncHistoryButtons() {
+    const off = pickHistory.length === 0 || busy() || isDrafting;
+    copyBtn.disabled = off;
+    clearHistoryBtn.disabled = off;
   }
 
   function clearHistory() {
@@ -2666,7 +2701,6 @@ try {
     const index = sliceIndexOf(slices, lastPicked);
     if (index < 0) return;
     applyRotation(rotationForSlice(slices, index), false);
-    bakeWheel(wheelRotation, slices);
   }
 
   function syncUi() {
@@ -2680,6 +2714,8 @@ try {
     enableAllBtn.disabled = blocked;
     disableAllBtn.disabled = blocked;
     resetWeightsBtn.disabled = blocked;
+    resetBtn.disabled = blocked;
+    syncHistoryButtons();
 
     if (!busy()) {
       const slices = computeSlices(activePool());
@@ -2845,6 +2881,12 @@ try {
 
   function resetAll() {
     if (busy() || isDrafting) return;
+
+    // Every civ back on. Weights are left alone — they have their own button.
+    ALL_IDS.forEach(function (id) { enabled[id] = true; });
+    persistEnabled();
+    ALL_IDS.forEach(syncCard);
+
     bag = [];
     pickHistory = [];
     pickCount = 0;
@@ -2864,10 +2906,10 @@ try {
 
     setPicked(null);
     syncBag();
-    bakeWheel(0, computeSlices(enabledIds()));
+    drawWheel(computeSlices(enabledIds()));
     applyRotation(0, false);
     syncUi();
-    showToast("Reset done — wheel back in list order");
+    showToast("Reset done — all civs back on");
   }
 
   async function copyText(text, okMessage) {
@@ -3545,6 +3587,7 @@ try {
   renderLastDraft();
   syncBag();
   sizeWheelCanvas();
+  applyRotation(0, false);        // never leave the canvas transform unset
   setPicked(lastPicked);
   syncUi();
 
