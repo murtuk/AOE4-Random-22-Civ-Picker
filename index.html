@@ -99,6 +99,8 @@ print('data:image/webp;base64,'+base64.b64encode(b.getvalue()).decode())" newciv
   where c is ONE DIGIT PER CIV, in CIVS array order:
       0 = civ disabled, 1..5 = civ enabled with that weight
   r = no-repeat (0/1), s = spin speed (0 off / 1 slow / 2 fast).
+  New links also include w, one weight digit per civ, including disabled civs.
+  This optional field keeps older v1 links and readers compatible.
   Because the digits are positional, appending new civs to the end keeps old
   links working (missing trailing digits default to "enabled, weight 1").
   Reordering or removing a civ silently corrupts every link ever shared, so
@@ -123,17 +125,18 @@ print('data:image/webp;base64,'+base64.b64encode(b.getvalue()).decode())" newciv
 
   <style>
     :root{
-      --bg0:#070a10; --bg1:#0b1020; --card:rgba(255,255,255,.06);
-      --stroke:rgba(255,255,255,.12); --text:#eaf0ff; --muted:#a9b7d6;
+      --bg0:#070a10; --bg1:#0b1020; --card:#111a2a;
+      --stroke:rgba(183,202,231,.18); --text:#eaf0ff; --muted:#a9b7d6;
       --good:#7dffb2; --warn:#ffda7d; --bad:#ff7d7d;
       --gold:#ffe28a;
       --shadow: 0 16px 40px rgba(0,0,0,.45);
-      --r:18px;
+      --r:16px;
       font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
       color: var(--text);
       color-scheme: dark;
     }
-    *{ -webkit-tap-highlight-color: transparent; }
+    *{ box-sizing:border-box; -webkit-tap-highlight-color: transparent; }
+    input{ accent-color:var(--gold); }
     [hidden]{ display:none !important; }
     html{ scrollbar-gutter: stable; }
     body{
@@ -149,18 +152,18 @@ print('data:image/webp;base64,'+base64.b64encode(b.getvalue()).decode())" newciv
     }
 
     /* One consistent focus ring everywhere. */
-    :where(button, input, a, [tabindex]):focus-visible{
+    :where(button, input, a, summary, [tabindex]):focus-visible{
       outline:2px solid var(--gold);
       outline-offset:2px;
       border-radius:10px;
     }
 
-    .wrap{ max-width: 1100px; margin:0 auto; padding: 24px 16px 40px; }
+    .wrap{ max-width:1280px; margin:0 auto; padding:32px 24px 48px; }
     header{
       display:flex; gap:14px; align-items:flex-end; justify-content:space-between; flex-wrap:wrap;
-      margin-bottom: 14px;
+      margin-bottom:24px;
     }
-    h1{ margin:0; font-size: 22px; letter-spacing:.3px; }
+    h1{ margin:0; font:700 clamp(1.6rem, 3vw, 2.25rem)/1.2 Georgia, serif; letter-spacing:-.5px; }
     .sub{
       display:flex;
       flex-wrap:wrap;
@@ -190,15 +193,18 @@ print('data:image/webp;base64,'+base64.b64encode(b.getvalue()).decode())" newciv
     }
     .pillbar{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
     .pill{
-      padding: 8px 10px; border-radius: 999px; border: 1px solid var(--stroke);
-      background: rgba(255,255,255,.06); font-size: 12px; color: var(--muted);
+      padding:9px 12px; border-radius:10px; border:1px solid var(--stroke);
+      background:rgba(255,255,255,.04); font-size:.875rem; color:var(--muted);
       display:flex; gap:8px; align-items:center;
     }
     .pill b{ color: var(--text); font-weight: 700; }
 
-    .grid{ display:grid; grid-template-columns: 1fr; gap: 14px; }
+    .grid{ display:grid; grid-template-columns:minmax(0, 1fr); gap:20px; align-items:start; }
     @media (min-width: 980px){
-      .grid{ grid-template-columns: 420px 1fr; align-items:start; }
+      .grid{ grid-template-columns:380px minmax(0, 1fr); }
+    }
+    @media (min-width: 1200px){
+      .grid{ grid-template-columns:400px minmax(0, 1fr); }
     }
 
     .card{
@@ -219,7 +225,7 @@ print('data:image/webp;base64,'+base64.b64encode(b.getvalue()).decode())" newciv
       border-bottom: 1px solid var(--stroke);
     }
     .wheelStage{ display:grid; place-items:center; padding: 2px 0 18px; }
-    body.wheel-open{ overflow:hidden; }
+    body.wheel-open, body.modal-open{ overflow:hidden; }
     .wheelFocus{
       position:fixed;
       inset:0;
@@ -241,7 +247,7 @@ print('data:image/webp;base64,'+base64.b64encode(b.getvalue()).decode())" newciv
       transition:opacity .25s ease, visibility .25s ease;
     }
     .wheelFocus.show{ opacity:1; visibility:visible; pointer-events:auto; }
-    .wheelFocus .wheelShell{ width:min(650px, 88vw, 70vh); }
+    .wheelFocus .wheelShell{ width:min(650px, 82vw, max(100px, calc(100dvh - 250px))); }
     .wheelFocusStatus{
       margin:0;
       color:#fff1a8;
@@ -281,7 +287,7 @@ print('data:image/webp;base64,'+base64.b64encode(b.getvalue()).decode())" newciv
       display:block;
       margin-bottom:2px;
       color:var(--muted);
-      font-size:10px;
+      font-size:.75rem;
       font-weight:800;
       letter-spacing:.5px;
       text-transform:uppercase;
@@ -295,7 +301,7 @@ print('data:image/webp;base64,'+base64.b64encode(b.getvalue()).decode())" newciv
     }
     .wheelShell{
       position:relative;
-      width:min(330px, 82vw);
+      width:min(330px, 100%);
       aspect-ratio:1;
       /* No filter here on purpose — see .wheelRim for the drop shadow. */
     }
@@ -386,17 +392,18 @@ print('data:image/webp;base64,'+base64.b64encode(b.getvalue()).decode())" newciv
       80%{ transform:translateX(-2px) rotate(-.7deg) scale(.995); }
     }
     .wheelStatus{
-      min-height:18px;
+      min-height:20px;
       margin:12px 0 0;
       color:var(--muted);
-      font-size:12px;
-      font-weight:800;
-      letter-spacing:.25px;
+      font-size:.875rem;
+      font-weight:600;
+      letter-spacing:.1px;
       text-align:center;
     }
-    .resultRow{ display:flex; gap: 14px; align-items:center; }
+    .resultRow{ display:flex; gap:14px; align-items:center; padding:14px; border:1px solid rgba(255,226,138,.24); border-radius:12px; background:rgba(255,226,138,.04); }
+    .resultRow > div:last-child{ min-width:0; }
     .emblem{
-      width: 112px; height: 63px; border-radius: 12px;
+      width:80px; height:45px; border-radius: 12px;
       border: 1px solid var(--stroke);
       background: rgba(0,0,0,.25);
       display:grid; place-items:center;
@@ -413,8 +420,8 @@ print('data:image/webp;base64,'+base64.b64encode(b.getvalue()).decode())" newciv
         radial-gradient(60px 60px at 30% 30%, rgba(255,255,255,.10), transparent 60%),
         linear-gradient(135deg, rgba(255,255,255,.08), rgba(255,255,255,.02));
     }
-    .pickedName{ font-size: 21px; font-weight: 900; margin:0; line-height:1.15; }
-    .pickedMeta{ margin:6px 0 0; color: var(--muted); font-size: 12px; }
+    .pickedName{ font-size:1.25rem; font-weight: 900; margin:0; line-height:1.15; }
+    .pickedMeta{ margin:6px 0 0; color:var(--muted); font-size:.875rem; line-height:1.4; }
 
     /* -------------------------------------------------------------- BUTTONS */
     .btnRow{ display:flex; flex-wrap:wrap; gap: 10px; margin-top: 12px; }
@@ -424,8 +431,9 @@ print('data:image/webp;base64,'+base64.b64encode(b.getvalue()).decode())" newciv
       background: rgba(255,255,255,.08);
       color: var(--text);
       padding: 10px 12px;
-      border-radius: 14px;
-      font: inherit;
+      border-radius:10px;
+      font:inherit;
+      min-height:44px;
       font-weight: 800;
       letter-spacing:.2px;
     }
@@ -439,8 +447,8 @@ print('data:image/webp;base64,'+base64.b64encode(b.getvalue()).decode())" newciv
       background:linear-gradient(180deg,#fff2aa,#dcae35);
       color:#261a04;
       box-shadow:0 5px 16px rgba(224,174,49,.28);
-      font-size:15px;
-      font-weight:1000;
+      font-size:1rem;
+      font-weight:800;
     }
     #pickBtn:hover:not(:disabled){ background:linear-gradient(180deg,#fff6c2,#e8bd4c); }
     #pickBtn:disabled{ filter:saturate(.35); }
@@ -455,11 +463,11 @@ print('data:image/webp;base64,'+base64.b64encode(b.getvalue()).decode())" newciv
     .opts{ display:grid; gap:10px; margin-top: 12px; }
     .opt{
       display:flex; gap:10px; align-items:center;
-      color: var(--muted); font-size: 13px;
+      color:var(--muted); font-size:.875rem;
       user-select:none;
       cursor:pointer;
     }
-    .opt input{ transform: scale(1.1); cursor:pointer; }
+    .opt input{ width:18px; height:18px; margin:0; flex-shrink:0; cursor:pointer; }
     .opt.unavailable{
       opacity:.38;
       color:rgba(169,183,214,.62);
@@ -488,7 +496,6 @@ print('data:image/webp;base64,'+base64.b64encode(b.getvalue()).decode())" newciv
       -webkit-appearance:none;
       border:0;
       border-radius:999px;
-      outline:none;
       background:
         radial-gradient(circle at 7px 50%, #fff1a8 0 3px, transparent 3.5px),
         radial-gradient(circle at 50% 50%, #fff1a8 0 3px, transparent 3.5px),
@@ -520,8 +527,8 @@ print('data:image/webp;base64,'+base64.b64encode(b.getvalue()).decode())" newciv
       grid-template-columns:repeat(3, minmax(0, 1fr));
       margin-top:3px;
       color:rgba(255,255,255,.58);
-      font-size:10px;
-      font-weight:800;
+      font-size:.75rem;
+      font-weight:700;
     }
     .turnLabels span{
       min-height:22px;
@@ -529,14 +536,14 @@ print('data:image/webp;base64,'+base64.b64encode(b.getvalue()).decode())" newciv
       box-sizing:border-box;
       border:1px solid transparent;
       border-radius:8px;
-      transition:font-size .16s ease, color .16s ease, background .16s ease, border-color .16s ease, text-shadow .16s ease;
+      transition:color .16s ease, background .16s ease, border-color .16s ease;
     }
     /* The pill sits left / centre / right, but its own text stays centred. */
     .turnLabels span{ width:fit-content; min-width:56px; text-align:center; }
     .turnLabels span:first-child{ justify-self:start; }
     .turnLabels span:nth-child(2){ justify-self:center; }
     .turnLabels span:last-child{ justify-self:end; }
-    .turnLabels span.active{ font-size:14px; font-weight:1000; text-shadow:0 0 12px currentColor; }
+    .turnLabels span.active{ font-size:.75rem; font-weight:800; }
     .turnLabels span:first-child.active{
       color:#ff9999; border-color:rgba(255,125,125,.5); background:rgba(255,125,125,.11);
     }
@@ -556,9 +563,10 @@ print('data:image/webp;base64,'+base64.b64encode(b.getvalue()).decode())" newciv
       border-bottom: 1px solid var(--stroke);
       background: rgba(255,255,255,.03);
     }
-    .toolbar .left{ display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
+    .toolbar .left{ display:flex; flex-wrap:wrap; gap:8px; align-items:center; width:100%; }
     .toolbar input[type="search"]{
-      width: min(360px, 72vw);
+      width:100%;
+      min-width:0;
       padding: 10px 12px;
       border-radius: 14px;
       border: 1px solid var(--stroke);
@@ -579,13 +587,13 @@ print('data:image/webp;base64,'+base64.b64encode(b.getvalue()).decode())" newciv
       color:#ff9999;
     }
     #disableAll:hover:not(:disabled){ background:rgba(255,125,125,.2); border-color:rgba(255,125,125,.8); }
-    .count{ color: var(--muted); font-size: 12px; }
+    .count{ color:var(--muted); font-size:.875rem; }
     .chipHint{
       flex-basis:100%;
       margin-top:-2px;
       color:rgba(169,183,214,.85);
-      font-size:11.5px;
-      line-height:1.4;
+      font-size:.875rem;
+      line-height:1.5;
     }
     .chipHint b{
       display:inline-block;
@@ -594,8 +602,8 @@ print('data:image/webp;base64,'+base64.b64encode(b.getvalue()).decode())" newciv
       border-radius:999px;
       background:rgba(10,14,24,.82);
       color:#ffe9ad;
-      font-size:10px;
-      font-weight:1000;
+      font-size:.75rem;
+      font-weight:800;
     }
 
     .civGrid{
@@ -605,7 +613,7 @@ print('data:image/webp;base64,'+base64.b64encode(b.getvalue()).decode())" newciv
       padding: 14px;
     }
     @media (min-width: 720px){ .civGrid{ grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-    @media (min-width: 980px){ .civGrid{ grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+    @media (min-width: 1200px){ .civGrid{ grid-template-columns:repeat(4, minmax(0, 1fr)); } }
 
     /* A cell wraps the card button plus the weight chip button — two separate
        controls, because a <button> can never be nested inside another one. */
@@ -620,8 +628,8 @@ print('data:image/webp;base64,'+base64.b64encode(b.getvalue()).decode())" newciv
       display:block;
       width:100%;
       padding:0;
-      border-radius: 16px;
-      border: 1px solid var(--stroke);
+      border-radius:10px;
+      border:1px solid var(--stroke);
       background: rgba(255,255,255,.04);
       color:inherit;
       text-align:left;
@@ -678,24 +686,25 @@ print('data:image/webp;base64,'+base64.b64encode(b.getvalue()).decode())" newciv
       border-radius:6px;
       background:rgba(109,20,30,.92);
       color:#ffe1e1;
-      font-size:9px;
+      font-size:.75rem;
       font-weight:1000;
       letter-spacing:.55px;
     }
     .civName{
-      padding: 10px 10px 12px;
-      font-weight: 900;
-      font-size: 12.5px;
+      padding:10px;
+      font-weight:650;
+      font-size:.875rem;
       letter-spacing: .2px;
-      line-height: 1.2;
-      min-height: 38px;
+      line-height:1.35;
+      min-height:60px;
+      overflow-wrap:break-word;
       display:flex; align-items:center;
     }
     .civCard[aria-pressed="false"] .civName{ color:#ffc7c7; }
     .tag{
       position:absolute; top:8px; right:8px;
-      font-size: 10px;
-      padding: 6px 8px;
+      font-size:.75rem;
+      padding:4px 6px;
       border-radius: 999px;
       border: 1px solid rgba(255,255,255,.18);
       background: rgba(0,0,0,.28);
@@ -714,22 +723,22 @@ print('data:image/webp;base64,'+base64.b64encode(b.getvalue()).decode())" newciv
       color:#fff;
     }
     .weightChip{
-      position:absolute; top:8px; left:8px;
+      position:absolute; top:5px; left:5px;
       z-index:2;
-      min-width:34px;
+      min-width:44px;
       padding:5px 7px;
       border:1px solid rgba(255,226,138,.5);
       border-radius:999px;
       background:rgba(10,14,24,.82);
       color:#ffe9ad;
-      font-size:10px;
-      font-weight:1000;
+      font-size:.875rem;
+      font-weight:800;
       letter-spacing:.3px;
       text-align:center;
       backdrop-filter: blur(6px);
     }
     .weightChip:hover:not(:disabled){ background:rgba(30,24,8,.92); border-color:var(--gold); }
-    .weightChip[data-w="1"]{ opacity:.72; }
+    .weightChip[data-w="1"]{ opacity:1; }
     .weightChip[data-w="3"]{ border-color:rgba(255,226,138,.8); }
     .weightChip[data-w="4"], .weightChip[data-w="5"]{
       border-color:#ffd257;
@@ -737,7 +746,7 @@ print('data:image/webp;base64,'+base64.b64encode(b.getvalue()).decode())" newciv
       color:#fff3c8;
       box-shadow:0 0 0 3px rgba(255,210,87,.14);
     }
-    .civCell.off .weightChip{ opacity:.34; }
+    .civCell.off .weightChip{ opacity:.7; }
     .emptyState{
       grid-column:1 / -1;
       padding:34px 14px;
@@ -764,7 +773,7 @@ print('data:image/webp;base64,'+base64.b64encode(b.getvalue()).decode())" newciv
       transition:opacity .2s ease, visibility .2s ease;
     }
     .modal.show{ opacity:1; visibility:visible; pointer-events:auto; }
-    .modal.duck{ opacity:0; pointer-events:none; }
+    .modal.duck{ opacity:0; visibility:hidden; pointer-events:none; }
     .modalCard{
       width:min(560px, 100%);
       max-height:min(86vh, 760px);
@@ -778,7 +787,7 @@ print('data:image/webp;base64,'+base64.b64encode(b.getvalue()).decode())" newciv
     }
     .modalHead{ display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
     .modalHead h2{ margin:0; font-size:18px; }
-    .modalHead p{ margin:6px 0 0; color:var(--muted); font-size:12.5px; line-height:1.45; }
+    .modalHead p{ margin:6px 0 0; color:var(--muted); font-size:.875rem; line-height:1.5; }
     .modalClose{ padding:6px 11px; border-radius:999px; font-size:14px; line-height:1; }
     .fieldRow{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:16px; }
     .fieldRow > span{ color:var(--muted); font-size:13px; font-weight:700; }
@@ -824,8 +833,8 @@ print('data:image/webp;base64,'+base64.b64encode(b.getvalue()).decode())" newciv
       display:flex; align-items:center; gap:7px;
       padding:6px 8px;
       border-radius:11px;
-      font-size:11.5px;
-      font-weight:800;
+      font-size:.875rem;
+      font-weight:650;
       text-align:left;
     }
     .banPick img{ width:28px; height:16px; flex:0 0 auto; border-radius:3px; object-fit:cover; }
@@ -847,6 +856,10 @@ print('data:image/webp;base64,'+base64.b64encode(b.getvalue()).decode())" newciv
     .draftActions{
       display:flex; flex-wrap:wrap; align-items:center; gap:10px;
       margin-top:16px;
+      position:sticky; bottom:0; z-index:5;
+      padding:10px 0 2px;
+      border-top:1px solid var(--stroke);
+      background:#0c1220;
     }
     #draftCancel{
       margin-right:auto;
@@ -895,12 +908,12 @@ print('data:image/webp;base64,'+base64.b64encode(b.getvalue()).decode())" newciv
       border:1px solid var(--stroke);
       border-radius:11px;
       background:rgba(255,255,255,.045);
-      font-size:12.5px;
+      font-size:.875rem;
     }
     .recap img{ width:34px; height:19px; flex:0 0 auto; border-radius:3px; object-fit:cover; }
     .recap .who{
       flex:0 0 auto; min-width:34px;
-      color:var(--muted); font-size:10px; font-weight:800;
+      color:var(--muted); font-size:.75rem; font-weight:800;
       letter-spacing:.4px; text-transform:uppercase;
     }
     .recap strong{ font-weight:900; }
@@ -914,7 +927,7 @@ print('data:image/webp;base64,'+base64.b64encode(b.getvalue()).decode())" newciv
       padding-top:12px;
       border-top:1px solid var(--stroke);
       color:rgba(169,183,214,.78);
-      font-size:10.5px;
+      font-size:.75rem;
       line-height:1.55;
     }
     .credits a{ color:#e6c868; }
@@ -965,9 +978,116 @@ print('data:image/webp;base64,'+base64.b64encode(b.getvalue()).decode())" newciv
       white-space:nowrap;
       border:0;
     }
+
+    /* Layout refinements keep the wheel and pool prominent at every width. */
+    .eyebrow{ margin:0 0 8px; color:var(--gold); font-size:.75rem; font-weight:750; letter-spacing:2px; text-transform:uppercase; }
+    .sub .spaceCallout{ font-weight:600; }
+    .sub kbd{ min-width:0; padding:3px 7px; border:1px solid rgba(255,226,138,.35); border-bottom-width:2px; border-radius:5px; background:rgba(255,226,138,.08); color:var(--gold); box-shadow:none; }
+    .hero{ padding:22px; border-top:2px solid rgba(255,226,138,.7); }
+    .primaryActions{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+    .primaryActions #pickBtn{ grid-column:1 / -1; }
+    .utilityActions{ gap:8px; justify-content:space-between; }
+    .utilityActions button{ padding:8px; border-color:transparent; background:transparent; font-size:.875rem; color:var(--muted); }
+    .resetActions{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+    .resetActions button{ min-width:0; font-size:.875rem; line-height:1.35; }
+    #resetBtn{
+      border:1px solid #b88b49;
+      border-bottom-width:3px;
+      background:linear-gradient(180deg,#624521,#392913);
+      color:#ffebbc;
+      box-shadow:inset 0 1px 0 rgba(255,230,166,.16),0 3px 10px rgba(0,0,0,.25);
+    }
+    #resetBtn:hover:not(:disabled){ background:linear-gradient(180deg,#79562b,#4b351a); }
+    #resetWheelBtn{
+      border:1px solid #a66d43;
+      border-bottom-width:3px;
+      background:linear-gradient(180deg,#503622,#302217);
+      color:#f3d7b4;
+    }
+    #resetWheelBtn:hover:not(:disabled){ background:linear-gradient(180deg,#68472d,#422e1e); }
+    #resetAllBtn{
+      border:1px solid #ae665a;
+      background:linear-gradient(180deg,#5e2b2b,#371c20);
+      color:#ffe0cc;
+    }
+    #resetAllBtn:hover:not(:disabled){ background:linear-gradient(180deg,#743635,#4b2429); }
+    .cycleBadge{
+      position:absolute; bottom:6px; left:6px;
+      padding:3px 6px; border:1px solid rgba(213,182,115,.6); border-radius:5px;
+      background:rgba(32,26,15,.94); color:#f7dfad;
+      font-size:.75rem; font-weight:750; line-height:1.35;
+    }
+    .civCell.cycleUsed .cycleBadge{ border-color:#927c5a; background:#2a2721; color:#d5c5a9; }
+    .draftWheelPanel{
+      display:grid; justify-items:center; gap:12px; margin-top:14px; padding:16px 10px 12px;
+      border:1px solid rgba(213,182,115,.3); border-radius:14px;
+      background:radial-gradient(circle at 50% 25%,rgba(187,136,48,.12),transparent 70%),#0d111b;
+    }
+    .draftWheelMount{ display:grid; place-items:center; width:100%; padding:6px 0; }
+    .draftWheelMount .wheelShell{ width:min(270px,65vw,max(140px,calc(100dvh - 430px))); }
+    .draftWheelPanel .wheelFocusTicker{ min-width:0; width:min(320px,100%); padding:8px 10px; }
+    .draftWheelPanel .wheelFocusTicker > div:last-child{ min-width:0; overflow-wrap:anywhere; }
+    .draftWheelPanel .focusCivIcon{ width:48px; height:27px; }
+    #draftSkipBtn{ border-color:rgba(213,182,115,.5); background:rgba(187,136,48,.12); color:#ffebbc; }
+    .noRepeatOption{ align-items:flex-start; padding:14px 0; border-top:1px solid var(--stroke); line-height:1.4; color:var(--text); }
+    .noRepeatOption input{ margin-top:2px; }
+    .noRepeatOption small{ display:block; margin-top:4px; font-size:.75rem; color:var(--muted); }
+    .settings{ border-top:1px solid var(--stroke); }
+    .settings summary{ min-height:44px; padding:12px 0; color:var(--muted); font-size:.875rem; font-weight:650; cursor:pointer; }
+    .settingsBody{ display:grid; gap:14px; padding:4px 0 6px; }
+    .opt{ min-height:32px; line-height:1.5; }
+    .turnHeader{ font-size:.875rem; }
+    .turnControl input[type="range"]{ height:32px; }
+    .history{ padding:8px 22px 22px; }
+    .panelHead{ padding:12px 0; flex-wrap:wrap; }
+    .history h3{ font-size:.875rem; }
+    .panelHead h3 span, .recapEmpty, .draftResults .who, .lastDraftBans{ font-size:.75rem; }
+    .historyActions{ display:flex; gap:4px; }
+    .tinyBtn{ min-height:36px; font-size:.75rem; border-radius:8px; }
+    .poolHead{ display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px; padding:22px 18px 16px; }
+    .poolHead h2{ margin:0; font-size:1.125rem; }
+    .poolHead p{ margin:6px 0 0; font-size:.875rem; line-height:1.5; color:var(--muted); }
+    .poolHead .count{ white-space:nowrap; }
+    .toolbar{ padding:0 18px 14px; background:none; }
+    .toolbar input[type="search"]{ flex-basis:100%; margin-bottom:4px; border-radius:10px; }
+    .toolbar .smallBtn{ font-size:.875rem; padding:8px 10px; border-radius:8px; }
+    .chipHint{ margin:4px 0 0; }
+    .civGrid{ padding:18px; }
+    .tag{ top:8px; right:6px; backdrop-filter:none; }
+    .civCard[aria-pressed="true"]{ border-color:rgba(183,202,231,.28); }
+    .civCard:hover:not(:disabled){ border-color:var(--gold); background:rgba(255,226,138,.07); }
+    .civCard[aria-pressed="false"] .thumb::after{ left:6px; bottom:6px; padding:3px 4px; }
+    .weightChip{ min-height:44px; }
+    .modalCard{ max-height:calc(100dvh - 32px); }
+    .modalClose{ min-width:44px; min-height:44px; }
+    .fieldRow > span, .segmented button, .draftTurn, .draftResults li{ font-size:.875rem; }
+    .segmented button{ min-width:44px; }
+    .banGrid{ grid-template-columns:repeat(auto-fill, minmax(140px, 1fr)); }
+    .banPick{ min-height:48px; }
+    .toast{ max-width:calc(100vw - 32px); width:max-content; bottom:max(18px, env(safe-area-inset-bottom)); line-height:1.5; }
+    .noScript{ color:var(--muted); font-size:.875rem; line-height:1.5; }
+    .noScript{ padding:16px; }
+    .bootFail span{ font-size:1rem; }
+    @media (max-width: 719px){
+      .wrap{ padding:20px 12px 32px; }
+      header{ gap:16px; margin-bottom:18px; }
+      .spaceCallout{ display:none; }
+      .hero{ padding:18px; }
+      .wheelShell{ width:min(280px, 100%); }
+      .wheelStage{ padding-bottom:14px; }
+      .poolHead{ padding:18px 12px 12px; }
+      .toolbar{ padding:0 12px 12px; }
+      .civGrid{ padding:12px; gap:10px; }
+      .history{ padding:6px 18px 18px; }
+      .wheelFocus{ padding:16px; gap:12px; overflow:auto; }
+      .wheelFocusTicker{ min-width:0; width:min(320px, 100%); }
+      .modal{ padding:12px; }
+      .modalCard{ padding:16px; }
+    }
   </style>
 </head>
 <body>
+  <noscript><p class="noScript">Turn on JavaScript to use the civilization picker. All artwork is included; no internet connection is needed.</p></noscript>
   <canvas id="confetti" class="confetti" aria-hidden="true"></canvas>
 
   <div class="wheelFocus" id="wheelFocus" role="dialog" aria-modal="true" aria-label="Spinning the wheel" aria-hidden="true">
@@ -982,28 +1102,29 @@ print('data:image/webp;base64,'+base64.b64encode(b.getvalue()).decode())" newciv
     </div>
   </div>
 
-  <div class="wrap">
+  <main class="wrap" id="app">
     <header>
       <div>
-        <h1>AoE4 Random Civ Picker</h1>
+        <p class="eyebrow">Age of Empires IV</p>
+        <h1>Random Civ Picker</h1>
         <p class="sub">
-          <span>Click civ cards to include or exclude them.</span>
+          <span>Choose your pool. Let the wheel decide.</span>
           <span class="spaceCallout">Press <kbd>Space</kbd> to spin.</span>
         </p>
       </div>
       <div class="pillbar">
         <div class="pill">Enabled: <b id="enabledCount">0</b>/<span id="totalCount">0</span></div>
-        <div class="pill">Wheel weight: <b id="weightCount">0</b></div>
+        <div class="pill" title="Sum of the enabled civilization weights">Total weight: <b id="weightCount">0</b></div>
       </div>
     </header>
 
     <div class="grid">
       <!-- Left: picker -->
-      <section class="card">
+      <section class="card pickerCard" aria-label="Civilization picker">
         <div class="hero">
           <div class="wheelStage" id="wheelStage">
             <div class="wheelShell" id="wheelShell">
-              <canvas id="wheelCanvas" width="720" height="720" aria-label="Enabled civilizations wheel"></canvas>
+              <canvas id="wheelCanvas" width="720" height="720" role="img" aria-label="Enabled civilizations wheel">Choose civilizations from the list, then spin to pick one.</canvas>
               <div class="wheelRim" aria-hidden="true"></div>
               <div class="wheelHub" aria-hidden="true"><div><span>AOE</span><b>IV</b></div></div>
               <div class="wheelPointer" aria-hidden="true"></div>
@@ -1012,26 +1133,35 @@ print('data:image/webp;base64,'+base64.b64encode(b.getvalue()).decode())" newciv
           </div>
 
           <div class="resultRow">
+            <span class="visually-hidden" id="pickAnnouncement" role="status" aria-live="polite" aria-atomic="true"></span>
             <div class="emblem" id="pickedEmblem">
               <div class="ph">?</div>
             </div>
             <div>
-              <p class="pickedName" id="pickedName">—</p>
-              <p class="pickedMeta" id="pickedMeta">Pick a civilization to start</p>
+              <p class="pickedName" id="pickedName">Ready to choose?</p>
+              <p class="pickedMeta" id="pickedMeta">Spin to pick your civilization</p>
             </div>
           </div>
 
-          <div class="btnRow">
-            <button id="pickBtn" type="button">Pick random civ</button>
-            <button id="draftBtn" type="button" title="Draft or team mode: 2-4 players, optional ban phase, one spin each">Draft mode</button>
+          <div class="btnRow primaryActions">
+            <button id="pickBtn" type="button">Spin the wheel</button>
+            <button id="draftBtn" type="button" title="Draft or team mode: 2–8 players, optional bans, one spin each">Draft mode</button>
             <button id="mixBtn" type="button" title="Shuffle the civilization order on the wheel">Mix wheel</button>
-            <button id="shareBtn" type="button" title="Copy a link that restores this exact setup">Copy share link</button>
-            <button id="copyBtn" type="button" disabled>Copy history</button>
-            <button id="resetBtn" type="button" title="Turns every civ back on, clears history and the last draft, resets the no-repeat bag, and puts the wheel back in list order. Weights keep their values — use Reset weights for those.">Reset</button>
+          </div>
+          <div class="btnRow utilityActions">
+            <button id="shareBtn" type="button" title="Copy a link with enabled civs, weights, no-repeat mode and spin speed">Copy share link</button>
+            <button id="resetAllBtn" type="button" title="Reset selections, all weights to ×1, the wheel and the no-repeat cycle. Clear history and the last draft.">Reset all</button>
+          </div>
+          <div class="btnRow resetActions">
+            <button id="resetBtn" type="button" title="Include every civilization and start a fresh no-repeat cycle. Keep weights, history and wheel order.">Reset civ selection</button>
+            <button id="resetWheelBtn" type="button" title="Restore the original slice order and starting angle. Keep selections, weights, history and the current cycle.">Reset wheel position</button>
           </div>
 
           <div class="opts">
-            <label class="opt"><input type="checkbox" id="noRepeat"> No repeats until all enabled civs selected once</label>
+            <label class="opt noRepeatOption"><input type="checkbox" id="noRepeat"><span>No repeats within a cycle<small id="cycleStatus">Each enabled civilization is picked once.</small></span></label>
+            <details class="settings" open>
+              <summary>Spin &amp; sound settings</summary>
+              <div class="settingsBody">
             <div class="turnControl">
               <div class="turnHeader">
                 <label for="spinSpeed">Wheel spin speed</label>
@@ -1045,13 +1175,18 @@ print('data:image/webp;base64,'+base64.b64encode(b.getvalue()).decode())" newciv
             <label class="opt" id="tickSoundOption"><input type="checkbox" id="tickSound" checked> Pointer tick sound</label>
             <label class="opt"><input type="checkbox" id="chimeToggle" checked> Victory chime on pick</label>
             <label class="opt"><input type="checkbox" id="confettiToggle" checked> Confetti on pick</label>
+              </div>
+            </details>
           </div>
         </div>
 
         <div class="history">
           <div class="panelHead">
             <h3>History <span>latest 10</span></h3>
-            <button class="tinyBtn" id="clearHistory" type="button" disabled>Clear history</button>
+            <div class="historyActions">
+              <button class="tinyBtn" id="copyBtn" type="button" disabled>Copy</button>
+              <button class="tinyBtn" id="clearHistory" type="button" disabled>Clear</button>
+            </div>
           </div>
           <ol class="recap" id="history"></ol>
           <p class="recapEmpty" id="historyEmpty">No picks yet.</p>
@@ -1080,21 +1215,24 @@ print('data:image/webp;base64,'+base64.b64encode(b.getvalue()).decode())" newciv
       </section>
 
       <!-- Right: civ grid -->
-      <section class="card">
+      <section class="card poolCard" aria-labelledby="poolTitle">
+        <div class="poolHead">
+          <div><h2 id="poolTitle">Civilization pool</h2><p>Click a flag to include or exclude a civilization.</p></div>
+          <div class="count" id="filteredCount" role="status" aria-live="polite">—</div>
+        </div>
         <div class="toolbar">
           <div class="left">
-            <input id="search" type="search" placeholder="Filter civs..." autocomplete="off" aria-label="Filter civilizations" />
+            <input id="search" type="search" placeholder="Search civilizations…" autocomplete="off" aria-label="Filter civilizations" />
             <button class="smallBtn" id="enableAll" type="button">Enable all</button>
             <button class="smallBtn" id="disableAll" type="button">Disable all</button>
             <button class="smallBtn" id="resetWeights" type="button" title="Set every civ back to x1">Reset weights</button>
-            <p class="chipHint">Click the <b>×1</b> chip on any civ to make it more likely — up to <b>×5</b>. Its slice on the wheel grows to match.</p>
+            <p class="chipHint">Tap a weight from <b>×1</b> to <b>×5</b> to increase its chance. After ×5, it resets to ×1.<span id="cycleWeightHint" hidden> With no repeats, weights affect who is drawn earlier; each included civ is still drawn once per cycle. Changing the civ selection starts a new cycle.</span></p>
           </div>
-          <div class="count" id="filteredCount">—</div>
         </div>
         <div class="civGrid" id="civGrid"></div>
       </section>
     </div>
-  </div>
+  </main>
 
   <!-- Draft / team mode -->
   <div class="modal" id="draftModal" role="dialog" aria-modal="true" aria-labelledby="draftTitle" aria-hidden="true">
@@ -1122,10 +1260,18 @@ print('data:image/webp;base64,'+base64.b64encode(b.getvalue()).decode())" newciv
       </div>
       <div class="draftBody" id="draftBody" hidden>
         <div class="draftTurn" id="draftTurn" aria-live="polite"></div>
+        <div class="draftWheelPanel" id="draftWheelPanel" hidden>
+          <div class="draftWheelMount" id="draftWheelMount"></div>
+          <div class="wheelFocusTicker">
+            <div class="focusCivIcon" id="draftCivIcon"><div class="ph">?</div></div>
+            <div><span>Under the pointer</span><strong id="draftCivName">—</strong></div>
+          </div>
+        </div>
         <div class="banGrid" id="draftBanGrid" hidden></div>
         <ol class="draftResults" id="draftResults"></ol>
         <div class="draftActions">
           <button id="draftCancel" type="button">Cancel draft</button>
+          <button id="draftSkipBtn" type="button" hidden disabled>Skip spin <span aria-hidden="true">(Esc)</span></button>
           <button id="draftCopy" type="button" disabled>Copy result</button>
           <button id="draftRestart" type="button">Start over</button>
         </div>
@@ -1373,6 +1519,7 @@ try {
     opts: STORE_PREFIX + "opts",
     order: STORE_PREFIX + "order",
     last: STORE_PREFIX + "last",
+    wheelAtStart: STORE_PREFIX + "wheelAtStart",
     lastDraft: STORE_PREFIX + "lastDraft",
     migrated: STORE_PREFIX + "migrated"
   };
@@ -1538,7 +1685,8 @@ try {
     return ALL_IDS.slice();
   })();
 
-  let bag = (loadJSON(K.bag, []) || []).filter(function (id) { return CIV_BY_ID.has(id); });
+  let bag = (loadJSON(K.bag, opts.noRepeat ? wheelOrder.filter(isEnabled) : []) || [])
+    .filter(function (id) { return CIV_BY_ID.has(id); });
   let pickCount = Math.max(0, Number(loadJSON(K.pickCount, 0)) || 0);
 
   let pickHistory = (loadJSON(K.history, []) || [])
@@ -1575,6 +1723,7 @@ try {
   let isMixing = false;
   let isDrafting = false;
   let wheelRotation = 0;
+  let wheelAtStart = loadJSON(K.wheelAtStart, false) === true;
   let passingCardEl = null;
   let currentSlices = [];
 
@@ -1630,6 +1779,8 @@ try {
   const shareBtn = $("shareBtn");
   const copyBtn = $("copyBtn");
   const resetBtn = $("resetBtn");
+  const resetWheelBtn = $("resetWheelBtn");
+  const resetAllBtn = $("resetAllBtn");
 
   const noRepeatEl = $("noRepeat");
   const spinSpeedEl = $("spinSpeed");
@@ -1675,6 +1826,11 @@ try {
   const draftCancelBtn = $("draftCancel");
   const focusCancelBtn = $("focusCancelBtn");
   const draftSubtitleEl = $("draftSubtitle");
+  const draftWheelPanel = $("draftWheelPanel");
+  const draftWheelMount = $("draftWheelMount");
+  const draftCivIconEl = $("draftCivIcon");
+  const draftCivNameEl = $("draftCivName");
+  const draftSkipBtn = $("draftSkipBtn");
 
   /* ==========================================================================
      5. SMALL UTILITIES
@@ -1685,7 +1841,7 @@ try {
     toastEl.textContent = text;
     toastEl.classList.add("show");
     if (toastTimer) clearTimeout(toastTimer);
-    toastTimer = setTimeout(function () { toastEl.classList.remove("show"); }, 1600);
+    toastTimer = setTimeout(function () { toastEl.classList.remove("show"); }, 3500);
   }
 
   function sleep(ms) {
@@ -2255,6 +2411,7 @@ try {
     wheelFocus.classList.add("show");
     wheelFocus.setAttribute("aria-hidden", "false");
     document.body.classList.add("wheel-open");
+    syncModalAccess();
     await nextPaint();
 
     // Now that the shell is at its big size, re-render the wheel crisply.
@@ -2320,6 +2477,7 @@ try {
     wheelFocus.classList.remove("show");
     wheelFocus.setAttribute("aria-hidden", "true");
     document.body.classList.remove("wheel-open");
+    syncModalAccess();
   }
 
   function restoreWheelAfterError() {
@@ -2355,8 +2513,8 @@ try {
     const from = wheelRotation;
     const to = from + turns * 360 + alignment;
 
-    skipRequested = false;
     const skipped = new Promise(function (resolve) { releaseSkip = resolve; });
+    if (skipRequested) releaseSkip(); // Esc during enlargement still skips this spin.
 
     applyRotation(to, true, duration);
     wheelStatusEl.textContent = "Spinning…";
@@ -2435,6 +2593,10 @@ try {
     renderEmblem(pickedEmblemEl, id);
     renderEmblem(focusCivIconEl, id);
     focusCivNameEl.textContent = nameOf(id);
+    if (!draftWheelPanel.hidden) {
+      renderEmblem(draftCivIconEl, id);
+      draftCivNameEl.textContent = nameOf(id);
+    }
 
     if (passingCell) passingCell.classList.remove("passing");
     passingCell = cellById.get(id) || null;
@@ -2446,8 +2608,8 @@ try {
     lastPicked = id || null;
     saveJSON(K.last, lastPicked);
 
-    pickedNameEl.textContent = id ? nameOf(id) : "—";
-    pickedMetaEl.textContent = id ? "Selected" : "Pick a civilization to start";
+    pickedNameEl.textContent = id ? nameOf(id) : "Ready to choose?";
+    pickedMetaEl.textContent = id ? "Your civilization" : "Spin to pick your civilization";
     renderEmblem(pickedEmblemEl, id);
     renderEmblem(focusCivIconEl, id);
     focusCivNameEl.textContent = id ? nameOf(id) : "—";
@@ -2472,7 +2634,22 @@ try {
     chip.textContent = "×" + w;
     chip.dataset.w = String(w);
     chip.setAttribute("aria-label",
-      nameOf(id) + " weight ×" + w + " of " + MAX_WEIGHT + ". Activate to increase.");
+      nameOf(id) + " weight ×" + w + " of " + MAX_WEIGHT +
+      (w === MAX_WEIGHT ? ". Activate to reset to ×1." : ". Activate to increase."));
+  }
+
+  function syncCycleCards() {
+    const remaining = new Set(bag);
+    cellById.forEach(function (cell, id) {
+      const visible = opts.noRepeat && isEnabled(id);
+      const used = visible && !remaining.has(id);
+      const badge = cell.querySelector(".cycleBadge");
+      badge.hidden = !visible;
+      badge.textContent = used ? "Drawn" : "In bag";
+      badge.title = used ? "Already drawn in this cycle" : "Remaining in this cycle";
+      cell.classList.toggle("cycleUsed", used);
+    });
+    $("cycleWeightHint").hidden = !opts.noRepeat;
   }
 
   function buildGrid() {
@@ -2498,6 +2675,12 @@ try {
       img.alt = "";
       img.src = emblemOf(c.id);
       thumb.appendChild(img);
+
+      const cycleBadge = document.createElement("span");
+      cycleBadge.className = "cycleBadge";
+      cycleBadge.id = "cycle-" + c.id;
+      cycleBadge.hidden = true;
+      thumb.appendChild(cycleBadge);
 
       const tag = document.createElement("span");
       tag.className = "tag";
@@ -2528,8 +2711,7 @@ try {
         if (isDrafting) { onDraftCardClick(c.id); return; }
         enabled[c.id] = !isEnabled(c.id);
         persistEnabled();
-        if (opts.noRepeat && enabled[c.id] && bag.indexOf(c.id) === -1) bag.push(c.id);
-        syncBag();
+        resetBag();
         syncCard(c.id);
         syncUi();
       });
@@ -2674,12 +2856,23 @@ try {
     const ids = enabledIds();
     enabledCountEl.textContent = String(ids.length);
     weightCountEl.textContent = String(totalWeight(ids));
-    filteredCountEl.textContent = ids.length + " enabled • " + visibleCount + " shown";
+    filteredCountEl.textContent = visibleCount === CIVS.length
+      ? ids.length + " of " + CIVS.length + " included"
+      : visibleCount + " shown · " + ids.length + " included";
+    $("cycleStatus").textContent = !opts.noRepeat
+      ? "Each enabled civilization is picked once."
+      : !ids.length ? "Include a civilization to begin."
+      : bag.length ? bag.length + " of " + ids.length + " remaining in this cycle."
+      : "Cycle complete. Next spin starts a new cycle.";
   }
 
   function updateWheelStatus(slices) {
     if (!slices.length) {
       wheelStatusEl.textContent = "Enable at least one civilization";
+      return;
+    }
+    if (wheelAtStart && !isDrafting) {
+      wheelStatusEl.textContent = "Wheel ready · starting position";
       return;
     }
     if (lastPicked && !isDrafting && isEnabled(lastPicked)) {
@@ -2698,6 +2891,7 @@ try {
       setPicked(null);
       return;
     }
+    if (wheelAtStart) return;
     const index = sliceIndexOf(slices, lastPicked);
     if (index < 0) return;
     applyRotation(rotationForSlice(slices, index), false);
@@ -2715,9 +2909,16 @@ try {
     disableAllBtn.disabled = blocked;
     resetWeightsBtn.disabled = blocked;
     resetBtn.disabled = blocked;
+    resetWheelBtn.disabled = blocked;
+    resetAllBtn.disabled = blocked;
+    noRepeatEl.disabled = blocked;
+    noRepeatEl.parentElement.classList.toggle("unavailable", blocked);
+    draftSkipBtn.disabled = !isSpinning;
+    draftRestartBtn.disabled = isDrafting || busy();
     syncHistoryButtons();
 
     if (!busy()) {
+      syncCycleCards();
       const slices = computeSlices(activePool());
       drawWheel(slices);
       realignToPicked(slices);
@@ -2755,14 +2956,18 @@ try {
 
   /* ==========================================================================
      12. NO-REPEAT BAG
-        Toggling a civ no longer nukes the cycle — the bag is intersected with
-        whatever is currently enabled instead.
+        A selection change starts a new cycle. Weight and wheel-position
+        changes preserve the remaining civs. Only a new spin refills a
+        completed cycle, so its final Drawn badges survive a page reload.
      ========================================================================== */
 
-  function refillBag(exclude) {
-    const ids = enabledIds();
-    bag = ids.filter(function (id) { return id !== exclude; });
-    if (!bag.length) bag = ids.slice();
+  function refillBag() {
+    bag = enabledIds();
+    saveJSON(K.bag, bag);
+  }
+
+  function resetBag() {
+    bag = opts.noRepeat ? enabledIds() : [];
     saveJSON(K.bag, bag);
   }
 
@@ -2782,7 +2987,6 @@ try {
       bag = cleaned;
       saveJSON(K.bag, bag);
     }
-    if (!bag.length) refillBag();
   }
 
   /* ==========================================================================
@@ -2792,7 +2996,10 @@ try {
   async function performSpin(poolIds, chosenId, options) {
     const settings = options || {};
     const slices = computeSlices(poolIds);
+    const previousPicked = lastPicked;
+    const previousRotation = wheelRotation;
     spinLabel = settings.label || null;
+    skipRequested = false;
     isSpinning = true;
     syncUi();
     if (settings.highlightCards !== false) clearCardStates();
@@ -2808,13 +3015,26 @@ try {
       snapWheelTo(slices, chosenId);
     }
 
+    // Cancellation may resolve a skipped animation; it must not commit its draw.
+    if (isDrafting && draft.cancelled) {
+      setPicked(previousPicked, { highlightCards: false });
+      applyRotation(previousRotation, false);
+      spinLabel = null;
+      isSpinning = false;
+      draftSkipBtn.disabled = true;
+      return failed;
+    }
+    wheelAtStart = false;
+    saveJSON(K.wheelAtStart, false);
     setPicked(chosenId, { highlightCards: settings.highlightCards !== false });
     if (spinLabel) wheelStatusEl.textContent = spinLabel + " gets " + nameOf(chosenId);
-    if (opts.confetti) fireConfetti();
-    playChime();
+    if (opts.confetti && !draft.cancelled) fireConfetti();
+    if (!draft.cancelled) playChime();
+    $("pickAnnouncement").textContent = (spinLabel ? spinLabel + ": " : "Selected: ") + nameOf(chosenId);
 
     spinLabel = null;
     isSpinning = false;
+    draftSkipBtn.disabled = true;
     return failed;
   }
 
@@ -2825,19 +3045,25 @@ try {
     if (opts.tickSound && opts.spinMode !== "off") primeAudio();
     else if (opts.chime) ensureAudio();
 
-    let chosen;
+    let eligible = pool;
     if (opts.noRepeat) {
       syncBag();
-      chosen = weightedPick(bag);
+      const startsNewCycle = !bag.length;
+      if (startsNewCycle) refillBag();
+      eligible = bag.slice();
+      if (startsNewCycle && eligible.length > 1) {
+        eligible = eligible.filter(function (id) { return id !== lastPicked; });
+      }
+    }
+    const chosen = weightedPick(eligible);
+    if (opts.noRepeat && chosen) {
       bag = bag.filter(function (id) { return id !== chosen; });
-      if (!bag.length) refillBag(chosen);       // no repeat across the cycle seam
-      else saveJSON(K.bag, bag);
-    } else {
-      chosen = weightedPick(pool);
+      saveJSON(K.bag, bag);
     }
     if (!chosen) return;
 
-    const failed = await performSpin(pool, chosen);
+    const returnFocus = document.activeElement;
+    const failed = await performSpin(eligible, chosen);
 
     pickCount += 1;
     pickHistory.unshift({ n: pickCount, id: chosen });
@@ -2848,6 +3074,9 @@ try {
 
     syncUi();
     wheelStatusEl.textContent = "The wheel chose " + nameOf(chosen);
+    if (returnFocus && returnFocus !== document.body && returnFocus.isConnected && !returnFocus.disabled) {
+      returnFocus.focus({ preventScroll:true });
+    } else { pickBtn.focus({ preventScroll:true }); }
     if (failed) showToast("Animation unavailable — picked instantly.");
   }
 
@@ -2875,16 +3104,40 @@ try {
     saveJSON(K.order, wheelOrder);
 
     isMixing = false;
+    wheelAtStart = false;
+    saveJSON(K.wheelAtStart, false);
     syncUi();
     showToast("Wheel mixed");
+  }
+
+  function resetCivSelection() {
+    if (busy() || isDrafting) return;
+    ALL_IDS.forEach(function (id) { enabled[id] = true; });
+    persistEnabled();
+    resetBag();
+    ALL_IDS.forEach(syncCard);
+    syncUi();
+    showToast("All civs included — fresh cycle ready");
+  }
+
+  function resetWheelPosition() {
+    if (busy() || isDrafting) return;
+    wheelOrder = ALL_IDS.slice();
+    saveJSON(K.order, wheelOrder);
+    wheelAtStart = true;
+    saveJSON(K.wheelAtStart, true);
+    applyRotation(0, false);
+    syncUi();
+    wheelStatusEl.textContent = "Wheel reset to its starting position";
+    showToast("Wheel order and position reset");
   }
 
   function resetAll() {
     if (busy() || isDrafting) return;
 
-    // Every civ back on. Weights are left alone — they have their own button.
-    ALL_IDS.forEach(function (id) { enabled[id] = true; });
+    ALL_IDS.forEach(function (id) { enabled[id] = true; weights[id] = 1; });
     persistEnabled();
+    persistWeights();
     ALL_IDS.forEach(syncCard);
 
     bag = [];
@@ -2903,23 +3156,42 @@ try {
     // right, so slice order matches card order again.
     wheelOrder = ALL_IDS.slice();
     saveJSON(K.order, wheelOrder);
+    wheelAtStart = true;
+    saveJSON(K.wheelAtStart, true);
 
     setPicked(null);
-    syncBag();
+    resetBag();
     drawWheel(computeSlices(enabledIds()));
     applyRotation(0, false);
     syncUi();
-    showToast("Reset done — all civs back on");
+    showToast("All civs included, weights ×1, wheel reset and history cleared");
   }
 
   async function copyText(text, okMessage) {
     try {
+      if (!navigator.clipboard || !navigator.clipboard.writeText) throw new Error("Clipboard API unavailable");
       await navigator.clipboard.writeText(text);
       showToast(okMessage);
       return true;
     } catch (err) {
-      showToast("Clipboard blocked by browser.");
-      return false;
+      const previousFocus = document.activeElement;
+      const field = document.createElement("textarea");
+      field.value = text;
+      field.setAttribute("aria-label", "Text to copy");
+      field.style.cssText = "position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;font-size:16px";
+      const parent = draftModal.classList.contains("show") && !draftModal.inert ? draftModal : document.body;
+      parent.appendChild(field);
+      let copied = false;
+      try {
+        field.focus();
+        field.select();
+        field.setSelectionRange(0, text.length);
+        copied = document.execCommand("copy");
+      } catch (ignored) { /* browser may block both clipboard mechanisms */ }
+      field.remove();
+      if (previousFocus && previousFocus.isConnected) previousFocus.focus({ preventScroll:true });
+      showToast(copied ? okMessage : "Copy was blocked. Allow clipboard access and try again.");
+      return copied;
     }
   }
 
@@ -2949,6 +3221,56 @@ try {
   };
 
   let lastFocusBeforeModal = null;
+  let draftWheelPlaceholder = null;
+
+  function mountDraftWheel() {
+    if (draftWheelPlaceholder) return;
+    const rect = wheelShell.getBoundingClientRect();
+    draftWheelPlaceholder = document.createElement("div");
+    draftWheelPlaceholder.className = "draftWheelPlaceholder";
+    draftWheelPlaceholder.style.width = rect.width + "px";
+    draftWheelPlaceholder.style.height = rect.height + "px";
+    wheelStage.insertBefore(draftWheelPlaceholder, wheelShell);
+    draftWheelMount.appendChild(wheelShell);
+    draftWheelPanel.hidden = false;
+    draftSkipBtn.hidden = false;
+    draftCivNameEl.textContent = "—";
+    renderEmblem(draftCivIconEl, null);
+    sizeWheelCanvas();
+    drawWheel(computeSlices(draft.pool));
+  }
+
+  function restoreDraftWheel() {
+    if (draftWheelPlaceholder) {
+      wheelStage.insertBefore(wheelShell, draftWheelPlaceholder);
+      draftWheelPlaceholder.remove();
+      draftWheelPlaceholder = null;
+    }
+    draftWheelPanel.hidden = true;
+    draftSkipBtn.hidden = true;
+    draftSkipBtn.disabled = true;
+    if (sizeWheelCanvas()) drawWheel(currentSlices);
+  }
+
+  function syncModalAccess() {
+    const wheelOpen = wheelFocus.classList.contains("show");
+    const draftOpen = draftModal.classList.contains("show");
+    const draftHidden = wheelOpen || draftModal.classList.contains("duck");
+    $("app").inert = wheelOpen || draftOpen;
+    wheelFocus.inert = !wheelOpen;
+    draftModal.inert = !draftOpen || draftHidden;
+    draftModal.setAttribute("aria-hidden", String(!draftOpen || draftHidden));
+    document.body.classList.toggle("modal-open", draftOpen);
+  }
+
+  function focusDraft() {
+    syncModalAccess();
+    const button = draft.phase === "setup"
+      ? (draftStartBtn.disabled ? draftCloseBtn : draftStartBtn)
+      : draft.phase === "ban" ? draftBanGridEl.querySelector("button:not(:disabled)")
+      : draft.phase === "done" ? draftCopyBtn : draftCancelBtn;
+    if (button && !draftModal.inert) button.focus({ preventScroll:true });
+  }
 
   function buildSegmented(container, values, current, onPick) {
     container.textContent = "";
@@ -3011,8 +3333,8 @@ try {
   }
 
   function openDraft() {
-    if (busy()) return;
-    lastFocusBeforeModal = document.activeElement;
+    if (busy() || isDrafting) return;
+    if (!draftModal.classList.contains("show")) lastFocusBeforeModal = document.activeElement;
     draft.phase = "setup";
     draft.pool = [];
     draft.banned = [];
@@ -3051,13 +3373,15 @@ try {
     draftModal.classList.add("show");
     draftModal.setAttribute("aria-hidden", "false");
     draftBtn.disabled = true;
-    draftStartBtn.focus({ preventScroll: true });
+    focusDraft();
   }
 
   function closeDraft() {
-    if (isSpinning) return;
+    if (isDrafting && draft.phase === "pick") { cancelDraft(); return; }
+    restoreDraftWheel();
     draftModal.classList.remove("show", "duck");
     draftModal.setAttribute("aria-hidden", "true");
+    syncModalAccess();
     isDrafting = false;
     clearCardStates();
     if (lastPicked) {
@@ -3078,8 +3402,8 @@ try {
     draft.cancelled = true;
     draftCancelBtn.disabled = true;
     focusCancelBtn.disabled = true;
-    if (isSpinning) {
-      requestSkip();          // unwind the current spin, the loop bails after
+    if (draft.phase === "pick") {
+      requestSkip();          // the running loop performs cleanup, even between spins
       return;
     }
     finishCancel();
@@ -3174,13 +3498,14 @@ try {
       renderDraftTurn();
       renderDraftBanGrid();
       renderDraftHighlights();
+      focusDraft();
     } else {
       runDraftPicks();
     }
   }
 
   function banCiv(id) {
-    if (draft.phase !== "ban") return;
+    if (draft.phase !== "ban" || draft.pool.indexOf(id) === -1) return;
     draft.banned.push({ player: (draft.banStep % draft.players) + 1, id: id });
     draft.pool = draft.pool.filter(function (x) { return x !== id; });
     draft.banStep += 1;
@@ -3192,6 +3517,7 @@ try {
     } else {
       renderDraftTurn();
       renderDraftBanGrid();
+      focusDraft();
     }
   }
 
@@ -3228,7 +3554,11 @@ try {
     draftBanGridEl.hidden = true;
     if (opts.tickSound || opts.chime) primeAudio();
 
-    for (let p = 0; p < draft.players; p++) {
+    if (!opts.enlargeWheel && opts.spinMode !== "off") mountDraftWheel();
+    focusDraft();
+
+    try {
+      for (let p = 0; p < draft.players; p++) {
       if (draft.cancelled) break;
       const spinPool = draft.pool.slice();          // everything still available
       const chosen = weightedPick(spinPool);
@@ -3239,8 +3569,12 @@ try {
       const who = "Player " + (p + 1);
       draftTurnEl.textContent = "Picking for " + who + "…";
 
-      draftModal.classList.add("duck");
+      if (opts.enlargeWheel && opts.spinMode !== "off") {
+        draftModal.classList.add("duck");
+        syncModalAccess();
+      }
       await sleep(200);
+      if (draft.cancelled) break;
       await performSpin(spinPool, chosen, { highlightCards: false, label: who });
       if (draft.cancelled) break;
       draft.pool = draft.pool.filter(function (x) { return x !== chosen; });
@@ -3248,7 +3582,11 @@ try {
       renderDraftHighlights();
       renderDraftResults();
       draftModal.classList.remove("duck");
+      focusDraft();
       await sleep(420);
+      }
+    } finally {
+      restoreDraftWheel();
     }
 
     if (draft.cancelled) { finishCancel(); return; }
@@ -3271,6 +3609,7 @@ try {
 
     // Persisted immediately, so "Start over", the X, Esc or a reload can't
     // take the result away — it stays under History on the left.
+    focusDraft();
     saveLastDraft({
       results: draft.results.filter(function (r) { return r.id; })
         .map(function (r) { return { player: r.player, id: r.id }; }),
@@ -3299,9 +3638,10 @@ try {
       return isEnabled(c.id) ? String(weightOf(c.id)) : "0";
     }).join("");
     const speed = Math.max(0, SPIN_MODES.findIndex(function (m) { return m.key === opts.spinMode; }));
+    const allWeights = CIVS.map(function (c) { return String(weightOf(c.id)); }).join("");
     const base = location.href.split("#")[0];
     return base + "#v=" + SHARE_VERSION + "&c=" + digits +
-      "&r=" + (opts.noRepeat ? 1 : 0) + "&s=" + speed;
+      "&w=" + allWeights + "&r=" + (opts.noRepeat ? 1 : 0) + "&s=" + speed;
   }
 
   function applyShareHash() {
@@ -3313,6 +3653,11 @@ try {
 
     const digits = params.get("c") || "";
     if (!/^[0-5]+$/.test(digits)) return false;
+    const sharedWeights = params.get("w");
+    if (sharedWeights !== null &&
+        (!/^[1-5]+$/.test(sharedWeights) || sharedWeights.length !== digits.length)) return false;
+    const previousSelection = ALL_IDS.map(isEnabled).join("|");
+    const previousNoRepeat = opts.noRepeat;
 
     CIVS.forEach(function (c, index) {
       const ch = digits.charAt(index);
@@ -3323,12 +3668,9 @@ try {
       }
       const value = Number(ch);
       enabled[c.id] = value > 0;
-      if (value > 0) weights[c.id] = value;
+      // Old links omit disabled weights; use ×1 instead of the receiver's setup.
+      weights[c.id] = sharedWeights !== null ? Number(sharedWeights.charAt(index)) : value || 1;
     });
-
-    if (!enabledIds().length) {         // never hand someone an empty wheel
-      ALL_IDS.forEach(function (id) { enabled[id] = true; });
-    }
 
     opts.noRepeat = params.get("r") === "1";
     opts.spinMode = SPIN_MODES[clampInt(params.get("s"), 0, 2, 1)].key;
@@ -3336,8 +3678,9 @@ try {
     persistEnabled();
     persistWeights();
     persistOpts();
-    bag = [];
-    saveJSON(K.bag, bag);
+    if (previousSelection !== ALL_IDS.map(isEnabled).join("|") || previousNoRepeat !== opts.noRepeat) {
+      resetBag();
+    }
     return true;
   }
 
@@ -3355,6 +3698,7 @@ try {
 
   let confettiTimer = null;
   let confettiRunning = false;
+  let confettiRun = 0;
 
   function resizeConfetti() {
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -3364,6 +3708,7 @@ try {
   }
 
   function fireConfetti() {
+    const run = ++confettiRun;
     if (confettiTimer) clearTimeout(confettiTimer);
     resizeConfetti();
     confettiCanvas.classList.add("show");
@@ -3386,6 +3731,7 @@ try {
     }
 
     const stop = function () {
+      if (run !== confettiRun) return;
       confettiRunning = false;
       confettiCanvas.classList.remove("show");
       confettiCtx.clearRect(0, 0, window.innerWidth, window.innerHeight);
@@ -3394,7 +3740,7 @@ try {
     let frame = 0;
     confettiRunning = true;
     (function tick() {
-      if (!confettiRunning) return;
+      if (!confettiRunning || run !== confettiRun) return;
       frame++;
       const w = window.innerWidth, h = window.innerHeight;
       confettiCtx.clearRect(0, 0, w, h);
@@ -3433,9 +3779,12 @@ try {
 
   pickBtn.addEventListener("click", doPick);
   mixBtn.addEventListener("click", mixWheel);
-  resetBtn.addEventListener("click", resetAll);
+  resetBtn.addEventListener("click", resetCivSelection);
+  resetWheelBtn.addEventListener("click", resetWheelPosition);
+  resetAllBtn.addEventListener("click", resetAll);
   copyBtn.addEventListener("click", copyHistory);
   skipBtn.addEventListener("click", requestSkip);
+  draftSkipBtn.addEventListener("click", requestSkip);
   shareBtn.addEventListener("click", function () {
     copyText(buildShareUrl(), "Share link copied!");
   });
@@ -3452,7 +3801,7 @@ try {
     if (lastDraft) copyText(draftLines(lastDraft), "Draft copied!");
   });
   draftRestartBtn.addEventListener("click", function () {
-    if (isSpinning) return;
+    if (busy() || isDrafting) return;
     openDraft();
   });
   draftModal.addEventListener("mousedown", function (event) {
@@ -3461,19 +3810,21 @@ try {
 
   enableAllBtn.addEventListener("click", function () {
     if (busy() || isDrafting) return;
+    const changed = ALL_IDS.some(function (id) { return !isEnabled(id); });
     ALL_IDS.forEach(function (id) { enabled[id] = true; });
     persistEnabled();
     ALL_IDS.forEach(syncCard);
-    syncBag();
+    if (changed) resetBag();
     syncUi();
   });
 
   disableAllBtn.addEventListener("click", function () {
     if (busy() || isDrafting) return;
+    const changed = ALL_IDS.some(isEnabled);
     ALL_IDS.forEach(function (id) { enabled[id] = false; });
     persistEnabled();
     ALL_IDS.forEach(syncCard);
-    syncBag();
+    if (changed) resetBag();
     setPicked(null);
     syncUi();
   });
@@ -3490,10 +3841,12 @@ try {
   searchEl.addEventListener("input", applyFilter);
 
   noRepeatEl.addEventListener("change", function () {
+    if (busy() || isDrafting) { noRepeatEl.checked = !!opts.noRepeat; return; }
     opts.noRepeat = noRepeatEl.checked;
     persistOpts();
     if (opts.noRepeat) refillBag();
     else syncBag();
+    syncUi();
   });
 
   spinSpeedEl.addEventListener("input", function () {
@@ -3528,6 +3881,23 @@ try {
   });
 
   document.addEventListener("keydown", function (event) {
+    if (event.key === "Tab") {
+      const modal = wheelFocus.classList.contains("show") ? wheelFocus
+        : draftModal.classList.contains("show") && !draftModal.inert ? draftModal : null;
+      if (modal) {
+        const items = Array.from(modal.querySelectorAll("button:not(:disabled), a[href], input:not(:disabled), [tabindex='0']"))
+          .filter(function (el) { return !el.closest("[hidden], [inert]") && el.getClientRects().length; });
+        const first = items[0], last = items[items.length - 1];
+        if (!first) { event.preventDefault(); return; }
+        if (!items.includes(document.activeElement) || (!event.shiftKey && document.activeElement === last)) {
+          event.preventDefault(); (event.shiftKey ? last : first).focus();
+        } else if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault(); last.focus();
+        }
+      }
+      return;
+    }
+    if (event.repeat || event.isComposing || event.ctrlKey || event.metaKey || event.altKey) return;
     if (event.key === "Escape") {
       if (isSpinning) { requestSkip(); return; }
       if (draftModal.classList.contains("show")) { closeDraft(); return; }
@@ -3537,7 +3907,7 @@ try {
 
     const target = event.target;
     const tag = target && target.tagName ? target.tagName : "";
-    const typing = ["INPUT", "BUTTON", "TEXTAREA", "SELECT"].indexOf(tag) !== -1 ||
+    const typing = ["INPUT", "BUTTON", "TEXTAREA", "SELECT", "A", "SUMMARY"].indexOf(tag) !== -1 ||
       (target && target.isContentEditable);
     if (typing) return;
 
@@ -3558,6 +3928,7 @@ try {
     applyFilter();
     setPicked(null);
     syncUi();
+    if (draftModal.classList.contains("show")) updateDraftSetupState();
     showToast("Shared setup loaded");
   });
 
@@ -3580,6 +3951,7 @@ try {
   if (sharedSetup) stripHash();
 
   syncOptionControls();
+  syncModalAccess();
   preloadEmblems();
   buildGrid();
   applyFilter();
@@ -3595,17 +3967,11 @@ try {
 
 })();
 } catch (startupError) {
-  // Saved settings are the only thing that can realistically poison startup,
-  // so drop ours and say so — far better than a silent blank page.
+  // Report startup failures without deleting the user's saved configuration.
   console.error("AoE4 Random Civ Picker failed to start.", startupError);
-  try {
-    Object.keys(localStorage)
-      .filter(function (key) { return key.indexOf("aoe4cp_") === 0; })
-      .forEach(function (key) { localStorage.removeItem(key); });
-  } catch (ignored) { /* storage unavailable too — nothing more to do */ }
   document.body.insertAdjacentHTML("afterbegin",
     '<div class="bootFail"><b>Something went wrong starting the picker.</b>' +
-    '<span>Your saved settings have been cleared. Reload the page to start fresh.</span>' +
+    '<span>Your saved settings are still intact. Reload the page to try again.</span>' +
     '<button type="button" onclick="location.reload()">Reload</button></div>');
 }
   </script>
